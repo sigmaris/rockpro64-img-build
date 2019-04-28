@@ -1,5 +1,2 @@
-/macos-img-build/authorized_keys
 /macos-img-build/debian.qcow
 /macos-img-build/installer.log
-/macos-img-build/netboot.tar.gz
-/macos-img-build/tftpserver
