@@ -31,4 +31,4 @@ rootfs-release: debian-buster-arm64-rootfs.tar.xz
 	@curl --data-binary @debian-buster-arm64-rootfs.tar.xz \
 		-H "Authorization: token $$GH_ACCESS_TOKEN" \
 		-H "Content-Type: application/tar+xz" \
-		"$$(jq -r .upload_url gh_response.json | sed 's/{?.*}$/?name=debian-buster-arm64-rootfs.tar.xz/')"
+		"$$(jq -r .upload_url gh_response.json | sed 's/{?.*}$$/?name=debian-buster-arm64-rootfs.tar.xz/')"
