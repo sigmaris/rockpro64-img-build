@@ -47,17 +47,18 @@ EOF
 popd
 
 echo "Creating disk image for Debian Testing x86_64..."
-qemu-img create -f qcow2 ../debian.qcow 4G
+qemu-img create -f qcow2 ../debian.qcow 10G
 
 echo "Running Debian Installer..."
 qemu-system-x86_64 \
 	-machine accel=hvf \
 	-cpu host \
+	-smp $(($(nproc) / 2))
 	-hda ../debian.qcow \
 	-netdev user,id=net0,net=10.0.2.0/24,hostname=rp64builder,domainname=localdomain,tftp=tftpserver,bootfile=/pxelinux.0 \
 	-device e1000,netdev=net0,mac=52:54:98:76:54:32 \
 	-boot once=n \
-	-m 512 \
+	-m 2048 \
 	-nographic
 
 echo "Removing temporary directory $TEMP ..."

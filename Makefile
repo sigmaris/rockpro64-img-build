@@ -1,16 +1,30 @@
-
 .PHONY: all
 all: 
 
 .PHONY: clean
 clean:
-	rm debian-buster-arm64-rootfs.tar.xz
+	rm -f debian-buster-arm64-rootfs.tar.xz
 
 debian-buster-arm64-rootfs.tar.xz:
-	TEMP=$$(mktemp -d $$(readlink -f out)/build.XXXXX) ; \
-	pushd $$TEMP ; \
+	TEMPDIR="$$(mktemp -d build.XXXXX)" ; \
+	cd "$${TEMPDIR}" ; \
 	qemu-debootstrap --arch=arm64 --components=main,contrib,non-free buster rootfs ; \
-	tar --create --auto-compress --file ../../$@ rootfs ; \
-	popd ; \
-	popd ; \
-	rm -rf $$TEMP
+	tar --create --auto-compress --file ../$@ rootfs ; \
+	cd .. ; \
+	rm -rf "$${TEMPDIR}"
+
+.PHONY: rootfs-release
+rootfs-release: debian-buster-arm64-rootfs.tar.xz
+	test -n '$(ROOTFS_RELEASE)'
+	test -n "$$GH_ACCESS_TOKEN"
+	git tag 'buster-rootfs-$(ROOTFS_RELEASE)'
+	git push github 'buster-rootfs-$(ROOTFS_RELEASE)'
+	@API_JSON=$$(printf '{"tag_name":"buster-rootfs-%s","target_commitish":"master","name":"buster-rootfs-%s","body":"Buster rootfs.tar.xz %s","draft":false,"prerelease":false}' '$(ROOTFS_RELEASE)' '$(ROOTFS_RELEASE)' '$(ROOTFS_RELEASE)' ) ; \
+		curl --data "$$API_JSON" \
+		--output gh_response.json \
+		-H "Authorization: token $$GH_ACCESS_TOKEN" \
+		"https://api.github.com/repos/sigmaris/rockpro64-img-build/releases"
+	@curl --data-binary @debian-buster-arm64-rootfs.tar.xz \
+		-H "Authorization: token $$GH_ACCESS_TOKEN" \
+		-H "Content-Type: application/tar+xz" \
+		"$$(jq .upload_url gh_response.json)"
