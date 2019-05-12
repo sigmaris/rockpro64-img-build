@@ -1,2 +1,2 @@
 deb http://httpredir.debian.org/debian buster-updates main
-# deb-src http://httpredir.debian.org/debian buster-updates main
+deb-src http://httpredir.debian.org/debian buster-updates main
