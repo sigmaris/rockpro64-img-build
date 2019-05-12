@@ -1,4 +1,6 @@
 ROOTFS_RELEASE ?= $(shell date -u +%Y%m%dT%H%M%S)
+FILESYSTEM_FILES := $(shell find filesystem -type f)
+BUSTER_ROOTFS_FILES := $(patsubst filesystem/%,buster-rootfs/%,$(FILESYSTEM_FILES))
 
 .PHONY: all
 all: 
@@ -6,6 +8,13 @@ all:
 .PHONY: clean
 clean:
 	rm -f debian-buster-arm64-rootfs.tar.xz
+	rm -rf buster-rootfs
+
+info:
+	@echo "filesystem files:"
+	@echo "$(FILESYSTEM_FILES)"
+	@echo "buster-rootfs files:"
+	@echo "$(BUSTER_ROOTFS_FILES)"
 
 debian-buster-arm64-rootfs.tar.xz:
 	TEMPDIR="$$(mktemp -d build.XXXXX)" ; \
@@ -32,3 +41,16 @@ rootfs-release: debian-buster-arm64-rootfs.tar.xz
 		-H "Authorization: token $$GH_ACCESS_TOKEN" \
 		-H "Content-Type: application/tar+xz" \
 		"$$(jq -r .upload_url gh_response.json | sed 's/{?.*}$$/?name=debian-buster-arm64-rootfs.tar.xz/')"
+
+buster-rootfs: debian-buster-arm64-rootfs.tar.xz
+	mkdir $@
+	cd $@ && tar --extract --auto-compress --strip-components=1 --file ../$<
+
+buster-rootfs/%: filesystem/% | buster-rootfs
+	cp "$<" "$@"
+
+.PHONY: buster-packages
+buster-packages: $(BUSTER_ROOTFS_FILES)
+	cp installtarget.sh buster-rootfs
+	# We assume here that /usr/bin/qemu-aarch64-static was packaged in the rootfs tarball from qemu-debootstrap
+	systemd-nspawn -D buster-rootfs bin/bash -e -c 'source /installtarget.sh ; rm /installtarget.sh'
