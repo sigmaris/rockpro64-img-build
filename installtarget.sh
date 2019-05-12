@@ -4,8 +4,8 @@ systemctl enable systemd-resolved
 systemctl enable systemd-networkd
 
 # Build latest mesa debian package:
-apt-get install libclc-dev/experimental
-apt-get build-dep mesa
+apt-get install -y libclc-dev/experimental
+apt-get build-dep -y mesa
 mkdir -p /opt/build
 pushd /opt/build
 git clone --branch debian-experimental https://salsa.debian.org/xorg-team/lib/mesa.git
