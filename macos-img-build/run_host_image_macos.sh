@@ -17,7 +17,7 @@ function remote_command {
 for attempt in $(seq 20)
 do
 	echo "Trying checkout of code on build VM..."
-	remote_command "if test -d /rockpro64-img-build ; then cd /rockpro64-img-build ; git fetch origin ; else cd / ; git clone $(whoami)@10.0.2.2:$(realpath ..) rockpro64-img-build ; git remote add github git@github.com:sigmaris/rockpro64-img-build.git ; fi"
+	remote_command "if test -d /rockpro64-img-build ; then cd /rockpro64-img-build ; git fetch origin ; else cd / ; git clone $(whoami)@10.0.2.2:$(realpath ..) rockpro64-img-build ; cd rockpro64-img-build ; git remote add github git@github.com:sigmaris/rockpro64-img-build.git ; fi"
 	if [ $? -eq 0 ]
 	then
 		break

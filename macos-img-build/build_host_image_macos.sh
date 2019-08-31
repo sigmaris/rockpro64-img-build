@@ -24,7 +24,15 @@ echo "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
 CRYPTED_PASSWORD="$(openssl passwd -1 -salt xyz $ROOT_PASSWORD)"
 
 echo "Running simple webserver on port 4321 for host files..."
-PYTHON_PID=$(sh -c 'echo $$ ; exec >/dev/null 2>&1 ; exec python -m SimpleHTTPServer 4321' &)
+PYTHON_PID=$(sh -c 'echo $$ ; exec > ../webserver.log 2>&1 ; exec python -m SimpleHTTPServer 4321' &)
+sleep 1
+if ! [ "$PYTHON_PID" -gt 0 ]
+then
+	echo "Python webserver error $PYTHON_PID"
+	popd
+	rm -rf $TEMP
+	exit 1
+fi
 
 echo "Running netcat to capture syslogs..."
 NC_PID=$(sh -c 'echo $$ ; exec > ../installer.log 2>&1 ; exec nc -ul 10514' &)
@@ -47,13 +55,13 @@ EOF
 popd
 
 echo "Creating disk image for Debian Testing x86_64..."
-qemu-img create -f qcow2 ../debian.qcow 10G
+qemu-img create -f qcow2 ../debian.qcow 20G
 
 echo "Running Debian Installer..."
 qemu-system-x86_64 \
 	-machine accel=hvf \
 	-cpu host \
-	-smp $(($(nproc) / 2))
+	-smp $(($(nproc) / 2)) \
 	-hda ../debian.qcow \
 	-netdev user,id=net0,net=10.0.2.0/24,hostname=rp64builder,domainname=localdomain,tftp=tftpserver,bootfile=/pxelinux.0 \
 	-device e1000,netdev=net0,mac=52:54:98:76:54:32 \
