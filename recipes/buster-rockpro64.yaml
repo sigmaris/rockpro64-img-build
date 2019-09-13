@@ -1,0 +1,93 @@
+architecture: arm64
+
+actions:
+{{ if .extract }}
+  - action: unpack
+    file: rootfs.tar.gz
+{{ else }}
+  - action: debootstrap
+    suite: buster
+    components:
+      - main
+      - contrib
+      - non-free
+    mirror: https://deb.debian.org/debian
+
+  - action: pack
+    file: rootfs.tar.gz
+    compression: gz
+{{ end }}
+  - action: apt
+    packages:
+      - curl
+      - file
+      - gnupg
+      - initramfs-tools
+      - locales
+      - man-db
+      - openssh-server
+      - sudo
+      - u-boot-menu
+      - vim
+      - wget
+
+  - action: overlay
+    source: ../overlays/u-boot-menu
+
+  - action: overlay
+    source: ../overlays/apt-repo
+
+  - action: run
+    chroot: true
+    script: ../scripts/apt-repo.sh
+
+  - action: apt
+    packages:
+      - linux-image-5.3.0-rc6-next-20190830-g18ae9759e72c-sigmaris
+
+  - action: run
+    chroot: true
+    script: ../scripts/setup-user.sh
+
+  - action: run
+    chroot: true
+    command: echo rockpro64 > /etc/hostname
+
+  - action: overlay
+    source: ../overlays/networkd
+
+  - action: run
+    chroot: true
+    script: ../scripts/setup-networking.sh
+
+  - action: image-partition
+    imagename: debian-rockpro64.img
+    imagesize: 2GB
+    partitiontype: gpt
+    mountpoints:
+      - mountpoint: /
+        partition: root
+    partitions:
+      - name: loader1
+        fs: none
+        start: 64s
+        end: 8063s
+      - name: reserved1
+        fs: none
+        start: 8064s
+        end: 8191s
+      - name: reserved2
+        fs: none
+        start: 8192s
+        end: 16383s
+      - name: loader2
+        fs: none
+        start: 16384s
+        end: 24575s
+      - name: root
+        fs: ext4
+        start: 24576s
+        end: 100%
+
+  - action: filesystem-deploy
+    description: Deploying filesystem onto image
