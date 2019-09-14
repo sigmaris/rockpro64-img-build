@@ -117,13 +117,8 @@ actions:
         flags:
           - legacy_boot
 
-  - action: run
-    chroot: true
-    command: cat /etc/fstab
-
-  - action: run
-    chroot: true
-    command: cat /etc/kernel/cmdline
+  - action: filesystem-deploy
+    description: Deploying filesystem onto image
 
   - action: run
     chroot: true
@@ -132,9 +127,6 @@ actions:
   - action: run
     chroot: true
     script: ../scripts/setup-resolvconf.sh
-
-  - action: filesystem-deploy
-    description: Deploying filesystem onto image
 
   - action: raw
     origin: artifacts
