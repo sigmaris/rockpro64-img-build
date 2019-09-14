@@ -20,19 +20,34 @@ actions:
   - action: apt
     packages:
       - curl
+      - dbus
+      - default-dbus-session-bus
       - file
+      - gdisk
       - gnupg
       - initramfs-tools
       - locales
       - man-db
       - openssh-server
+      - parted
       - sudo
       - u-boot-menu
       - vim
       - wget
 
+  - action: run
+    chroot: true
+    command: echo RESUME=none > /etc/initramfs-tools/conf.d/resume
+
   - action: overlay
     source: ../overlays/u-boot-menu
+
+  - action: overlay
+    source: ../overlays/openssh
+
+  - action: run
+    chroot: true
+    script: ../scripts/setup-openssh.sh
 
   - action: overlay
     source: ../overlays/apt-repo
@@ -43,7 +58,7 @@ actions:
 
   - action: apt
     packages:
-      - linux-image-5.3.0-rc6-next-20190830-g18ae9759e72c-sigmaris
+      - linux-image-{{ .kernel_version }}
 
   - action: run
     chroot: true
@@ -61,8 +76,9 @@ actions:
     script: ../scripts/setup-networking.sh
 
   - action: image-partition
+    description: Partition according to Rockchip's partition format
     imagename: debian-rockpro64.img
-    imagesize: 2GB
+    imagesize: 1GB
     partitiontype: gpt
     mountpoints:
       - mountpoint: /
@@ -84,10 +100,50 @@ actions:
         fs: none
         start: 16384s
         end: 24575s
+      - name: atf
+        fs: none
+        start: 24576s
+        end: 32767s
+      - name: boot
+        fs: vfat
+        start: 32768s
+        end: 262143s
+        flags:
+          - esp
       - name: root
         fs: ext4
-        start: 24576s
+        start: 262144s
         end: 100%
+        flags:
+          - legacy_boot
+
+  - action: run
+    chroot: true
+    command: cat /etc/fstab
+
+  - action: run
+    chroot: true
+    command: cat /etc/kernel/cmdline
+
+  - action: run
+    chroot: true
+    command: /usr/sbin/u-boot-update
+
+  - action: run
+    chroot: true
+    script: ../scripts/setup-resolvconf.sh
 
   - action: filesystem-deploy
     description: Deploying filesystem onto image
+
+  - action: raw
+    origin: artifacts
+    source: idbloader.img
+    partition: loader1
+    offset: 0
+
+  - action: raw
+    origin: artifacts
+    source: u-boot.itb
+    partition: loader2
+    offset: 0

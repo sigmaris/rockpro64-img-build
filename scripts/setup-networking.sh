@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Network management
 systemctl enable systemd-networkd

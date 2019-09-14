@@ -4,6 +4,7 @@ adduser --gecos "Rock User" \
   --shell /bin/bash \
   rock
 
-adduser rock sudo
+usermod -a -G adm,dialout,cdrom,sudo,audio,video,plugdev,games,users,input,netdev rock
 
 echo "rock:rock.64" | chpasswd
+passwd -e rock
