@@ -4,7 +4,7 @@ actions:
 {{ if .extract }}
   - action: unpack
     file: rootfs.tar.gz
-    description: unpack pre-build rootfs
+    description: unpack pre-built rootfs
 {{ else }}
   - action: debootstrap
     suite: buster
@@ -142,6 +142,8 @@ actions:
           - legacy_boot
 
   - action: filesystem-deploy
+    setup-fstab: true
+    setup-kernel-cmdline: true
     description: >-
       Deploy filesystem onto image, generate /etc/fstab and /etc/kernel/cmdline,
       and switch the chroot to the mounted image's root filesystem
@@ -174,3 +176,8 @@ actions:
     partition: loader2
     offset: 0
     description: Write the U-Boot main loader
+
+  - action: run
+    postprocess: true
+    description: Set loader partition flags
+    script: ../scripts/set-image-flags.sh debian-rockpro64.img
