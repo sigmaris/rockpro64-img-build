@@ -4,6 +4,7 @@ actions:
 {{ if .extract }}
   - action: unpack
     file: rootfs.tar.gz
+    description: unpack pre-build rootfs
 {{ else }}
   - action: debootstrap
     suite: buster
@@ -12,10 +13,12 @@ actions:
       - contrib
       - non-free
     mirror: https://deb.debian.org/debian
+    description: debootstrap root filesystem from scratch
 
   - action: pack
     file: rootfs.tar.gz
     compression: gz
+    description: save basic root filesystem for later use
 {{ end }}
   - action: apt
     packages:
@@ -34,35 +37,52 @@ actions:
       - u-boot-menu
       - vim
       - wget
+    description: install some minimal packages
 
   - action: run
     chroot: true
     command: echo RESUME=none > /etc/initramfs-tools/conf.d/resume
+    description: Disable resuming from hibernation as it causes delay in boot
 
   - action: overlay
     source: ../overlays/u-boot-menu
+    description: Add configuration for u-boot-menu
 
   - action: overlay
-    source: ../overlays/openssh
+    source: ../overlays/firstboot
+    description: >-
+      Set up things to run at first boot:
+      regenerate SSH keys if missing,
+      and resize root filesystem to fill disk/mmc/sd card
+
+  - action: run
+    chroot: true
+    command: systemctl enable resize-rootfs.service
+    description: Enable running resize-rootfs service at boot
 
   - action: run
     chroot: true
     script: ../scripts/setup-openssh.sh
+    description: Remove SSH host keys so they are regenerated on boot
 
   - action: overlay
     source: ../overlays/apt-repo
+    description: Add our custom APT repo (config and GPG key)
 
   - action: run
     chroot: true
     script: ../scripts/apt-repo.sh
+    description: Trust our custom APT repo's GPG key then remove it
 
   - action: apt
     packages:
       - linux-image-{{ .kernel_version }}
+    description: Install pre-built kernel package
 
   - action: run
     chroot: true
     script: ../scripts/setup-user.sh
+    description: Set up the 'rock' user
 
   - action: run
     chroot: true
@@ -70,10 +90,12 @@ actions:
 
   - action: overlay
     source: ../overlays/networkd
+    description: Configure systemd-networkd to use DHCP for the wired network
 
   - action: run
     chroot: true
     script: ../scripts/setup-networking.sh
+    description: Use systemd tools for network config, DNS and time sync
 
   - action: image-partition
     description: Partition according to Rockchip's partition format
@@ -83,6 +105,8 @@ actions:
     mountpoints:
       - mountpoint: /
         partition: root
+      - mountpoint: /boot/efi
+        partition: boot
     partitions:
       - name: loader1
         fs: none
@@ -118,24 +142,35 @@ actions:
           - legacy_boot
 
   - action: filesystem-deploy
-    description: Deploying filesystem onto image
+    description: >-
+      Deploy filesystem onto image, generate /etc/fstab and /etc/kernel/cmdline,
+      and switch the chroot to the mounted image's root filesystem
+      (further chroot commands affect the root filesystem inside the image)
 
   - action: run
     chroot: true
     command: /usr/sbin/u-boot-update
+    description: >-
+      Run u-boot-update to create /boot/extlinux/extlinux.conf
+      and insert root=UUID=... from /etc/fstab prepared by filesystem-deploy step.
 
   - action: run
     chroot: true
     script: ../scripts/setup-resolvconf.sh
+    description: >-
+      Replace /etc/resolv.conf with a symlink to systemd-resolved's stub resolver
+      config file. This would break DNS inside the chroot so is done last.
 
   - action: raw
     origin: artifacts
     source: idbloader.img
     partition: loader1
     offset: 0
+    description: Write the U-Boot idbloader.img (TPL and SPL concatenated)
 
   - action: raw
     origin: artifacts
     source: u-boot.itb
     partition: loader2
     offset: 0
+    description: Write the U-Boot main loader

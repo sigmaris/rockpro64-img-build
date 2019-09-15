@@ -1,0 +1,11 @@
+[Unit]
+Description=Expand root filesystem to fill disk
+After=systemd-modules-load.service local-fs.target
+ConditionPathExists=!/var/local/.rootfs-resized
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/resize-rootfs.sh
+
+[Install]
+WantedBy=multi-user.target
