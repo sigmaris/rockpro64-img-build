@@ -1,3 +1,4 @@
+{{- $image := or .image "debian-buster-rockpro64.img" -}}
 architecture: arm64
 
 actions:
@@ -99,7 +100,7 @@ actions:
 
   - action: image-partition
     description: Partition according to Rockchip's partition format
-    imagename: debian-buster-rockpro64.img
+    imagename: "{{ $image }}"
     imagesize: 1GB
     partitiontype: gpt
     mountpoints:
@@ -180,4 +181,4 @@ actions:
   - action: run
     postprocess: true
     description: Set loader partition flags
-    script: ../scripts/set-image-flags.sh debian-rockpro64.img
+    script: ../scripts/set-image-flags.sh "{{ $image }}"
