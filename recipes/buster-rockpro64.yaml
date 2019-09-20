@@ -99,7 +99,7 @@ actions:
 
   - action: image-partition
     description: Partition according to Rockchip's partition format
-    imagename: debian-rockpro64.img
+    imagename: debian-buster-rockpro64.img
     imagesize: 1GB
     partitiontype: gpt
     mountpoints:
