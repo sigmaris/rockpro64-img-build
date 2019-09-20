@@ -1,0 +1,2 @@
+UBOOT_RELEASE="v2019.10-rc3-ci"
+KERNEL_VERSION="5.3.0-rc7-next-20190904-gbec9a95768e4-sigmaris"
