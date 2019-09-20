@@ -157,8 +157,8 @@ actions:
       and insert root=UUID=... from /etc/fstab prepared by filesystem-deploy step.
 
   - action: run
-    chroot: true
-    script: ../scripts/setup-resolvconf.sh
+    chroot: false
+    command: ln -sf /run/systemd/resolve/stub-resolv.conf "${ROOTDIR}/etc/resolv.conf"
     description: >-
       Replace /etc/resolv.conf with a symlink to systemd-resolved's stub resolver
       config file. This would break DNS inside the chroot so is done last.
