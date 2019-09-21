@@ -98,6 +98,10 @@ actions:
     script: ../scripts/setup-networking.sh
     description: Use systemd tools for network config, DNS and time sync
 
+  - action: overlay
+    source: ../overlays/audio
+    description: Set sensible names and starting state for audio devices
+
   - action: image-partition
     description: Partition according to Rockchip's partition format
     imagename: "{{ $image }}"

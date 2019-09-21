@@ -1,0 +1,18 @@
+SUBSYSTEM!="sound", GOTO="alsa_naming_end"
+ACTION!="add", GOTO="alsa_naming_end"
+
+DEVPATH=="/devices/platform/hdmi-sound/sound/card?", ATTR{id}="HDMI"
+DEVPATH=="/devices/platform/sound/sound/card?", ATTR{id}="Analog"
+
+LABEL="alsa_naming_end"
+
+
+SUBSYSTEM!="sound", GOTO="pa_naming_end"
+ACTION!="change", GOTO="pa_naming_end"
+KERNEL!="card*", GOTO="pa_naming_end"
+
+DEVPATH=="/devices/platform/hdmi-sound/sound/card?", ATTR{PULSE_NAME}="HDMI"
+DEVPATH=="/devices/platform/sound/sound/card?", ATTR{PULSE_NAME}="Analog"
+
+LABEL="pa_naming_end"
+
