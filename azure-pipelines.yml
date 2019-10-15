@@ -1,3 +1,4 @@
+# Currently this doesn't work, waiting for Ubuntu 18.04 to be supported on Azure Pipelines.
 trigger:
   batch: false
   branches:
