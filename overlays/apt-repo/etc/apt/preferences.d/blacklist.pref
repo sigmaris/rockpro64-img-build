@@ -1,0 +1,5 @@
+# Blacklist dmidecode as it causes kernel panics
+# https://lists.debian.org/debian-kernel/2019/03/msg00058.html
+Package: dmidecode
+Pin: release *
+Pin-Priority: -1
