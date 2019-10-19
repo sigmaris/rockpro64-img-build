@@ -31,6 +31,7 @@ actions:
       - gnupg
       - initramfs-tools
       - locales
+      - lsb-release
       - man-db
       - openssh-server
       - parted
