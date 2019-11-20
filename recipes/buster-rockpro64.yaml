@@ -85,7 +85,7 @@ actions:
   - action: overlay
     origin: artifacts
     source: linuxdebs
-    destination: /
+    destination: /linuxdebs
     description: Copy in pre-built kernel package files
 
   - action: run
