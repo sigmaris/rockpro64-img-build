@@ -95,7 +95,7 @@ actions:
     description: Install pre-built kernel package files
     
   - action: run
-    command: rf -rf /linuxdebs
+    command: rm -rf /linuxdebs
     chroot: true
     label: cleanupkernel
     description: Clean pre-built kernel package files off filesystem after installation.
