@@ -1,4 +1,3 @@
-# Currently this doesn't work, waiting for Ubuntu 18.04 to be supported on Azure Pipelines.
 trigger:
   batch: false
   branches:
@@ -15,7 +14,7 @@ pool:
 steps:
 - script: |
     sudo apt-get update
-    sudo apt-get install -y bmap-tools debian-archive-keyring dosfstools e2fsprogs gdisk libglib2.0-0 libgpgme11 libostree-1-1 parted qemu-system-x86 qemu-user-static systemd-container zsync
+    sudo apt-get install -y bmap-tools curl debian-archive-keyring dosfstools e2fsprogs gdisk gzip libglib2.0-0 libgpgme11 libostree-1-1 parted qemu-system-x86 qemu-user-static systemd-container zsync
     sudo cp /usr/share/keyrings/debian-archive-keyring.gpg /etc/apt/trusted.gpg.d/debian-archive-keyring.gpg
     echo "deb http://deb.debian.org/debian testing main" | sudo tee /etc/apt/sources.list.d/debian-testing.list
     sudo apt-get update
@@ -44,7 +43,12 @@ steps:
     downloadPath: '$(Build.ArtifactStagingDirectory)'
   displayName: Download linux-image package
 - script: |
-    echo "Build.ArtifactStagingDirectory=$(Build.ArtifactStagingDirectory)"
-    echo "System.ArtifactsDirectory=$(System.ArtifactsDirectory)"
-    ls -lah "$(Build.ArtifactStagingDirectory)"/*
-  displayName: What's in the staging directory?
+    sudo debos --verbose --artifactdir="$(Build.ArtifactStagingDirectory)" recipes/buster-rockpro64.yaml
+    sudo chown $(id -u):$(id -g) debian-buster-rockpro64.img
+    gzip debian-buster-rockpro64.img
+  displayName: Run debos to create image then gzip it
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathToPublish: 'debian-buster-rockpro64.img.gz'
+    artifactName: image
+  displayName: Publish image as build artifact

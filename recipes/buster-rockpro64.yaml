@@ -76,10 +76,30 @@ actions:
     script: ../scripts/apt-repo.sh
     description: Trust our custom APT repo's GPG key then remove it
 
+{{ if .repo_kernel_version }}
   - action: apt
     packages:
-      - linux-image-{{ .kernel_version }}
-    description: Install pre-built kernel package
+      - linux-image-{{ .repo_kernel_version }}
+    description: Install pre-built kernel package from apt repository
+{{ else }}
+  - action: overlay
+    origin: artifacts
+    source: linuxdebs
+    destination: /
+    description: Copy in pre-built kernel package files
+
+  - action: run
+    command: dpkg -i /linuxdebs/*.deb
+    chroot: true
+    label: installkernel
+    description: Install pre-built kernel package files
+    
+  - action: run
+    command: rf -rf /linuxdebs
+    chroot: true
+    label: cleanupkernel
+    description: Clean pre-built kernel package files off filesystem after installation.
+{{ end }}
 
   - action: run
     chroot: true

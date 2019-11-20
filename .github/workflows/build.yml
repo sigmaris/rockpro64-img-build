@@ -29,7 +29,7 @@ jobs:
         uboot_url_prefix="https://github.com/sigmaris/u-boot/releases/download/${UBOOT_RELEASE}"
         curl --location --output artifacts/idbloader.img "${uboot_url_prefix}/idbloader.img"
         curl --location --output artifacts/u-boot.itb    "${uboot_url_prefix}/u-boot.itb"
-        sudo debos --verbose --artifactdir=artifacts --template-var="kernel_version:${KERNEL_VERSION}" recipes/buster-rockpro64.yaml
+        sudo debos --verbose --artifactdir=artifacts --template-var="repo_kernel_version:${KERNEL_VERSION}" recipes/buster-rockpro64.yaml
         sudo chown $(id -u):$(id -g) debian-buster-rockpro64.img
         gzip debian-buster-rockpro64.img
 
