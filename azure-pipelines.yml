@@ -13,6 +13,7 @@ pool:
 
 steps:
 - script: |
+    set -e
     sudo apt-get update
     sudo apt-get install -y bmap-tools curl debian-archive-keyring dosfstools e2fsprogs gdisk gzip libglib2.0-0 libgpgme11 libostree-1-1 parted qemu-system-x86 qemu-user-static systemd-container zsync
     sudo cp /usr/share/keyrings/debian-archive-keyring.gpg /etc/apt/trusted.gpg.d/debian-archive-keyring.gpg
@@ -43,6 +44,7 @@ steps:
     downloadPath: '$(Build.ArtifactStagingDirectory)'
   displayName: Download linux-image package
 - script: |
+    set -e
     rm $(Build.ArtifactStagingDirectory)/linuxdebs/linux-image-*-dbg_*_arm64.deb
     mv $(Build.ArtifactStagingDirectory)/uboot/* $(Build.ArtifactStagingDirectory)
     rmdir $(Build.ArtifactStagingDirectory)/uboot
