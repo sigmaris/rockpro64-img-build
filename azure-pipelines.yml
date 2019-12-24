@@ -1,3 +1,12 @@
+resources:
+  pipelines:
+    - pipeline: linux
+      source: sigmaris.linux
+      trigger: true
+    - pipeline: uboot
+      source: sigmaris.u-boot
+      trigger: true
+
 trigger:
   batch: false
   branches:
@@ -12,42 +21,23 @@ pool:
   vmImage: 'ubuntu-18.04'
 
 steps:
+- download: uboot
+  artifact: mmc_u-boot
+- download: linux
+  artifact: linuxdebs
+  patterns: '**/linux-image-*.deb'
 - script: |
     set -e
+    ls -l $(Pipeline.Workspace)/*
+    cp $(Pipeline.Workspace)/uboot/mmc_u-boot/* $(Build.ArtifactStagingDirectory)
+    rm $(Pipeline.Workspace)/linux/linuxdebs/linux-image-*-dbg_*_arm64.deb
+    cp -r $(Pipeline.Workspace)/linux/linuxdebs $(Build.ArtifactStagingDirectory)
     sudo apt-get update
     sudo apt-get install -y bmap-tools curl debian-archive-keyring dosfstools e2fsprogs gdisk gzip libglib2.0-0 libgpgme11 libostree-1-1 parted qemu-system-x86 qemu-user-static systemd-container zsync
     sudo cp /usr/share/keyrings/debian-archive-keyring.gpg /etc/apt/trusted.gpg.d/debian-archive-keyring.gpg
     echo "deb http://deb.debian.org/debian testing main" | sudo tee /etc/apt/sources.list.d/debian-testing.list
     sudo apt-get update
     sudo apt-get install --no-install-recommends -y debos
-  displayName: Switch Ubuntu repo to bionic and add debian testing repository for debos
-- task: DownloadBuildArtifacts@0
-  inputs:
-    buildType: 'specific'
-    project: 'rock-builds'
-    pipeline: 'sigmaris.u-boot'
-    specificBuildWithTriggering: true
-    buildVersionToDownload: 'latest'
-    downloadType: 'single'
-    artifactName: 'mmc_u-boot'
-    downloadPath: '$(Build.ArtifactStagingDirectory)'
-  displayName: Download u-boot files
-- task: DownloadBuildArtifacts@0
-  inputs:
-    buildType: 'specific'
-    project: 'rock-builds'
-    pipeline: 'sigmaris.linux'
-    specificBuildWithTriggering: true
-    buildVersionToDownload: 'latest'
-    downloadType: 'specific'
-    itemPattern: 'linuxdebs/linux-image-*.deb'
-    downloadPath: '$(Build.ArtifactStagingDirectory)'
-  displayName: Download linux-image package
-- script: |
-    set -e
-    rm $(Build.ArtifactStagingDirectory)/linuxdebs/linux-image-*-dbg_*_arm64.deb
-    mv $(Build.ArtifactStagingDirectory)/mmc_u-boot/* $(Build.ArtifactStagingDirectory)
-    rmdir $(Build.ArtifactStagingDirectory)/mmc_u-boot
     sudo debos --verbose --artifactdir="$(Build.ArtifactStagingDirectory)" recipes/buster-rockpro64.yaml
     sudo chown $(id -u):$(id -g) debian-buster-rockpro64.img
     gzip debian-buster-rockpro64.img
