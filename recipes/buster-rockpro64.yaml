@@ -93,7 +93,7 @@ actions:
     chroot: true
     label: installkernel
     description: Install pre-built kernel package files
-    
+
   - action: run
     command: rm -rf /linuxdebs
     chroot: true
@@ -191,14 +191,14 @@ actions:
 
   - action: raw
     origin: artifacts
-    source: idbloader.img
+    source: mmc_idbloader.img
     partition: loader1
     offset: 0
     description: Write the U-Boot idbloader.img (TPL and SPL concatenated)
 
   - action: raw
     origin: artifacts
-    source: u-boot.itb
+    source: mmc_u-boot.itb
     partition: loader2
     offset: 0
     description: Write the U-Boot main loader

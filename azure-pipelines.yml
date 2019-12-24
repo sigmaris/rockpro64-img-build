@@ -29,7 +29,7 @@ steps:
     specificBuildWithTriggering: true
     buildVersionToDownload: 'latest'
     downloadType: 'single'
-    artifactName: 'uboot'
+    artifactName: 'mmc_u-boot'
     downloadPath: '$(Build.ArtifactStagingDirectory)'
   displayName: Download u-boot files
 - task: DownloadBuildArtifacts@0
@@ -46,8 +46,8 @@ steps:
 - script: |
     set -e
     rm $(Build.ArtifactStagingDirectory)/linuxdebs/linux-image-*-dbg_*_arm64.deb
-    mv $(Build.ArtifactStagingDirectory)/uboot/* $(Build.ArtifactStagingDirectory)
-    rmdir $(Build.ArtifactStagingDirectory)/uboot
+    mv $(Build.ArtifactStagingDirectory)/mmc_u-boot/* $(Build.ArtifactStagingDirectory)
+    rmdir $(Build.ArtifactStagingDirectory)/mmc_u-boot
     sudo debos --verbose --artifactdir="$(Build.ArtifactStagingDirectory)" recipes/buster-rockpro64.yaml
     sudo chown $(id -u):$(id -g) debian-buster-rockpro64.img
     gzip debian-buster-rockpro64.img
