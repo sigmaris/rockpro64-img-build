@@ -131,8 +131,6 @@ actions:
     mountpoints:
       - mountpoint: /
         partition: root
-      - mountpoint: /boot/efi
-        partition: boot
     partitions:
       - name: loader1
         fs: none
@@ -154,12 +152,6 @@ actions:
         fs: none
         start: 24576s
         end: 32767s
-      - name: boot
-        fs: vfat
-        start: 32768s
-        end: 262143s
-        flags:
-          - esp
       - name: root
         fs: ext4
         start: 262144s
