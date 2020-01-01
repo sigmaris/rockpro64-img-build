@@ -28,7 +28,6 @@ steps:
   patterns: '**/linux-image-*.deb'
 - script: |
     set -e
-    ls -l $(Pipeline.Workspace)/*
     cp $(Pipeline.Workspace)/uboot/mmc_u-boot/* $(Build.ArtifactStagingDirectory)
     rm $(Pipeline.Workspace)/linux/linuxdebs/linux-image-*-dbg_*_arm64.deb
     cp -r $(Pipeline.Workspace)/linux/linuxdebs $(Build.ArtifactStagingDirectory)
