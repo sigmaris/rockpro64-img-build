@@ -10,16 +10,22 @@ fi
 dev=$(findmnt / -n -o SOURCE)
 
 case $dev in
-	/dev/mmcblk*)
-		DISK=${dev:0:12}
-		PARTNUM=${dev:13}
+	/dev/mmcblk*p*)
+		DISK="$(echo "$dev" | sed -e 's#^\(/dev/mmcblk[[:digit:]]\+\)p[[:digit:]]\+$#\1#')"
+		PARTNUM="$(echo "$dev" | sed -e 's#^/dev/mmcblk[[:digit:]]\+p\([[:digit:]]\+\)$#\1#')"
 		NAME="sd/emmc"
 		;;
 
 	/dev/sd*)
-		DISK=${dev:0:8}
-		PARTNUM=${dev:8}
+		DISK="$(echo "$dev" | sed -e 's#^\(/dev/sd[[:alpha:]]\+\)[[:digit:]]\+$#\1#')"
+		PARTNUM="$(echo "$dev" | sed -e 's#^/dev/sd[[:alpha:]]\+\([[:digit:]]\+\)$#\1#')"
 		NAME="hdd/ssd"
+		;;
+
+	/dev/nvme*n*)
+		DISK="$(echo "$dev" | sed -e 's#^\(/dev/nvme[[:digit:]]\+n[[:digit:]]\+\)p[[:digit:]]\+$#\1#')"
+		PARTNUM="$(echo "$dev" | sed -e 's#^/dev/nvme[[:digit:]]\+n[[:digit:]]\+p\([[:digit:]]\+\)$#\1#')"
+		NAME="nvme"
 		;;
 
 	*)
@@ -27,6 +33,12 @@ case $dev in
 		exit 1
 		;;
 esac
+
+# Sanity check
+if [[ ! -b "$DISK" ]] || [[ ! "$PARTNUM" -ge 0 ]]; then
+	echo "Couldn't recognize $dev as a partition"
+	exit 1
+fi
 
 echo "Resizing $DISK partition $PARTNUM ($NAME -- $dev)..."
 
