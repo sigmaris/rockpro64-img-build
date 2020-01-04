@@ -33,10 +33,12 @@ actions:
       - locales
       - lsb-release
       - man-db
+      - mtd-utils
       - openssh-server
       - parted
       - sudo
       - u-boot-menu
+      - u-boot-tools
       - vim
       - wget
     description: install some minimal packages
