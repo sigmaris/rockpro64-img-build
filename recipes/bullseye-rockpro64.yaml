@@ -1,0 +1,203 @@
+{{- $image := or .image "debian-bullseye-rockpro64.img" -}}
+architecture: arm64
+
+actions:
+{{ if .extract }}
+  - action: unpack
+    file: rootfs.tar.gz
+    description: unpack pre-built rootfs
+{{ else }}
+  - action: debootstrap
+    suite: bullseye
+    components:
+      - main
+      - contrib
+      - non-free
+    mirror: https://deb.debian.org/debian
+    description: debootstrap root filesystem from scratch
+
+  - action: pack
+    file: rootfs.tar.gz
+    compression: gz
+    description: save basic root filesystem for later use
+{{ end }}
+  - action: apt
+    packages:
+      - curl
+      - dbus
+      - default-dbus-session-bus
+      - file
+      - gdisk
+      - gnupg
+      - initramfs-tools
+      - locales
+      - lsb-release
+      - man-db
+      - mtd-utils
+      - openssh-server
+      - parted
+      - sudo
+      - u-boot-menu
+      - u-boot-tools
+      - vim
+      - wget
+    description: install some minimal packages
+
+  - action: run
+    chroot: true
+    command: echo RESUME=none > /etc/initramfs-tools/conf.d/resume
+    description: Disable resuming from hibernation as it causes delay in boot
+
+  - action: overlay
+    source: ../overlays/u-boot-menu
+    description: Add configuration for u-boot-menu
+
+  - action: overlay
+    source: ../overlays/firstboot
+    description: >-
+      Set up things to run at first boot:
+      regenerate SSH keys if missing,
+      and resize root filesystem to fill disk/mmc/sd card
+
+  - action: run
+    chroot: true
+    command: systemctl enable resize-rootfs.service
+    description: Enable running resize-rootfs service at boot
+
+  - action: run
+    chroot: true
+    script: ../scripts/setup-openssh.sh
+    description: Remove SSH host keys so they are regenerated on boot
+
+  - action: overlay
+    source: ../overlays/apt-repo
+    description: Add our custom APT repo (config and GPG key)
+
+  - action: run
+    chroot: true
+    script: ../scripts/apt-repo.sh
+    description: Trust our custom APT repo's GPG key then remove it
+
+{{ if .repo_kernel_version }}
+  - action: apt
+    packages:
+      - linux-image-{{ .repo_kernel_version }}
+    description: Install pre-built kernel package from apt repository
+{{ else }}
+  - action: overlay
+    origin: artifacts
+    source: linuxdebs
+    destination: /linuxdebs
+    description: Copy in pre-built kernel package files
+
+  - action: run
+    command: dpkg -i /linuxdebs/*.deb
+    chroot: true
+    label: installkernel
+    description: Install pre-built kernel package files
+
+  - action: run
+    command: rm -rf /linuxdebs
+    chroot: true
+    label: cleanupkernel
+    description: Clean pre-built kernel package files off filesystem after installation.
+{{ end }}
+
+  - action: run
+    chroot: true
+    script: ../scripts/setup-user.sh
+    description: Set up the 'rock' user
+
+  - action: run
+    chroot: true
+    command: echo rockpro64 > /etc/hostname
+
+  - action: overlay
+    source: ../overlays/networkd
+    description: Configure systemd-networkd to use DHCP for the wired network
+
+  - action: run
+    chroot: true
+    script: ../scripts/setup-networking.sh
+    description: Use systemd tools for network config, DNS and time sync
+
+  - action: overlay
+    source: ../overlays/audio
+    description: Set sensible names and starting state for audio devices
+
+  - action: image-partition
+    description: Partition according to Rockchip's partition format
+    imagename: "{{ $image }}"
+    imagesize: 600MB
+    partitiontype: gpt
+    mountpoints:
+      - mountpoint: /
+        partition: root
+    partitions:
+      - name: loader1
+        fs: none
+        start: 64s
+        end: 8063s
+      - name: reserved1
+        fs: none
+        start: 8064s
+        end: 8191s
+      - name: reserved2
+        fs: none
+        start: 8192s
+        end: 16383s
+      - name: loader2
+        fs: none
+        start: 16384s
+        end: 24575s
+      - name: atf
+        fs: none
+        start: 24576s
+        end: 32767s
+      - name: root
+        fs: ext4
+        start: 262144s
+        end: 100%
+        flags:
+          - legacy_boot
+
+  - action: filesystem-deploy
+    setup-fstab: true
+    setup-kernel-cmdline: true
+    description: >-
+      Deploy filesystem onto image, generate /etc/fstab and /etc/kernel/cmdline,
+      and switch the chroot to the mounted image's root filesystem
+      (further chroot commands affect the root filesystem inside the image)
+
+  - action: run
+    chroot: true
+    command: /usr/sbin/u-boot-update
+    description: >-
+      Run u-boot-update to create /boot/extlinux/extlinux.conf
+      and insert root=UUID=... from /etc/fstab prepared by filesystem-deploy step.
+
+  - action: run
+    chroot: false
+    command: ln -sf /run/systemd/resolve/stub-resolv.conf "${ROOTDIR}/etc/resolv.conf"
+    description: >-
+      Replace /etc/resolv.conf with a symlink to systemd-resolved's stub resolver
+      config file. This would break DNS inside the chroot so is done last.
+
+  - action: raw
+    origin: artifacts
+    source: mmc_idbloader.img
+    partition: loader1
+    offset: 0
+    description: Write the U-Boot idbloader.img (TPL and SPL concatenated)
+
+  - action: raw
+    origin: artifacts
+    source: mmc_u-boot.itb
+    partition: loader2
+    offset: 0
+    description: Write the U-Boot main loader
+
+  - action: run
+    postprocess: true
+    description: Set loader partition flags
+    script: ../scripts/set-image-flags.sh "{{ $image }}"
