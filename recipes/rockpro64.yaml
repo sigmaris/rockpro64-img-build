@@ -1,14 +1,16 @@
-{{- $image := or .image "debian-buster-rockpro64.img" -}}
+{{- $suite := or .suite "buster" -}}
+{{- $default_image := printf "debian-%s-rockpro64.img" $suite -}}
+{{- $image := or .image $default_image -}}
 architecture: arm64
 
 actions:
 {{ if .extract }}
   - action: unpack
-    file: rootfs.tar.gz
+    file: "{{ $suite }}-rootfs.tar.gz"
     description: unpack pre-built rootfs
 {{ else }}
   - action: debootstrap
-    suite: buster
+    suite: "{{ $suite }}"
     components:
       - main
       - contrib
@@ -17,7 +19,7 @@ actions:
     description: debootstrap root filesystem from scratch
 
   - action: pack
-    file: rootfs.tar.gz
+    file: "{{ $suite }}-rootfs.tar.gz"
     compression: gz
     description: save basic root filesystem for later use
 {{ end }}
@@ -38,7 +40,11 @@ actions:
       - parted
       - sudo
       - u-boot-menu
+{{ if eq $suite "buster" -}}
       - u-boot-tools
+{{ else -}}
+      - libubootenv-tool
+{{ end -}}
       - vim
       - wget
     description: install some minimal packages
@@ -77,7 +83,6 @@ actions:
     chroot: true
     script: ../scripts/apt-repo.sh
     description: Trust our custom APT repo's GPG key then remove it
-
 {{ if .repo_kernel_version }}
   - action: apt
     packages:
@@ -102,7 +107,6 @@ actions:
     label: cleanupkernel
     description: Clean pre-built kernel package files off filesystem after installation.
 {{ end }}
-
   - action: run
     chroot: true
     script: ../scripts/setup-user.sh
@@ -128,7 +132,7 @@ actions:
   - action: image-partition
     description: Partition according to Rockchip's partition format
     imagename: "{{ $image }}"
-    imagesize: 600MB
+    imagesize: 700MB
     partitiontype: gpt
     mountpoints:
       - mountpoint: /
@@ -141,6 +145,10 @@ actions:
       - name: reserved1
         fs: none
         start: 8064s
+        end: 8127s
+      - name: env
+        fs: none
+        start: 8128s
         end: 8191s
       - name: reserved2
         fs: none
@@ -150,10 +158,6 @@ actions:
         fs: none
         start: 16384s
         end: 24575s
-      - name: atf
-        fs: none
-        start: 24576s
-        end: 32767s
       - name: root
         fs: ext4
         start: 262144s
