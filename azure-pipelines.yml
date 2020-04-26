@@ -77,7 +77,7 @@ jobs:
       sudo apt-get update
       sudo apt-get install -y bmap-tools curl debian-archive-keyring dosfstools e2fsprogs gdisk gzip libglib2.0-0 libgpgme11 libostree-1-1 parted qemu-system-x86 qemu-user-static systemd-container zsync
       sudo cp /usr/share/keyrings/debian-archive-keyring.gpg /etc/apt/trusted.gpg.d/debian-archive-keyring.gpg
-      echo "deb http://deb.debian.org/debian testing main" | sudo tee /etc/apt/sources.list.d/debian-testing.list
+      echo "deb http://deb.debian.org/debian buster main" | sudo tee /etc/apt/sources.list.d/debian-buster.list
       sudo apt-get update
       sudo apt-get install --no-install-recommends -y debos
       if [ -n "$KERNEL_VERSION" ]; then
