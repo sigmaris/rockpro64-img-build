@@ -40,11 +40,11 @@ actions:
       - parted
       - sudo
       - u-boot-menu
-{{ if eq $suite "buster" -}}
+{{ if eq $suite "buster" }}
       - u-boot-tools
-{{ else -}}
+{{ else }}
       - libubootenv-tool
-{{ end -}}
+{{ end }}
       - vim
       - wget
     description: install some minimal packages
@@ -77,7 +77,19 @@ actions:
 
   - action: overlay
     source: ../overlays/apt-repo
-    description: Add our custom APT repo (config and GPG key)
+    description: Add our custom APT repo GPG key and blacklist
+
+  - action: run
+    chroot: true
+    command: echo "deb http://sigmaris.github.io/rockpkgs {{ $suite }} main" > /etc/apt/sources.list.d/sigmaris_rockpkgs.list
+    description: Configure our custom APT repo
+
+{{ if eq $suite "buster" }}
+  - action: run
+    chroot: true
+    command: echo "deb http://deb.debian.org/debian buster-backports main" > /etc/apt/sources.list.d/buster_backports.list
+    description: Add the buster-backports repository
+{{ end }}
 
   - action: run
     chroot: true

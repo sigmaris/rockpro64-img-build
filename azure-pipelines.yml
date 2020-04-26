@@ -22,80 +22,106 @@ trigger:
     include:
       - '*-ci'
 
-pool:
-  vmImage: 'ubuntu-18.04'
+jobs:
+- job: build_images
+  pool:
+    vmImage: 'ubuntu-18.04'
+  strategy:
+    matrix:
+      debian_buster:
+        suite: buster
+      debian_bullseye:
+        suite: bullseye
+  steps:
+  - download: uboot
+    artifact: mmc_u-boot
+    condition: not(startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    displayName: "Download MMC u-boot artifacts from latest Pipelines build"
+  - script: |
+      set -ex
+      cp $(Pipeline.Workspace)/uboot/mmc_u-boot/mmc_* $(Build.ArtifactStagingDirectory)
+    condition: not(startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    displayName: "Copy MMC u-boot artifacts from latest Pipelines build to artifact staging directory"
+  - task: DownloadGitHubRelease@0
+    condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/v')
+    displayName: "Download MMC u-boot artifacts from Github release"
+    inputs:
+      connection: sigmaris_token
+      userRepository: sigmaris/u-boot
+      defaultVersionType: 'specificTag'
+      version: '$(u_boot_tag)'
+      itemPattern: 'mmc_*'
+      downloadPath: '$(Build.ArtifactStagingDirectory)'
 
-steps:
-- download: uboot
-  artifact: mmc_u-boot
-  condition: not(startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
-  displayName: "Download MMC u-boot artifacts from latest Pipelines build"
-- script: |
-    set -ex
-    cp $(Pipeline.Workspace)/uboot/mmc_u-boot/mmc_* $(Build.ArtifactStagingDirectory)
-  condition: not(startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
-  displayName: "Copy MMC u-boot artifacts from latest Pipelines build to artifact staging directory"
-- task: DownloadGitHubRelease@0
-  condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/v')
-  displayName: "Download MMC u-boot artifacts from Github release"
-  inputs:
-    connection: sigmaris_token
-    userRepository: sigmaris/u-boot
-    defaultVersionType: 'specificTag'
-    version: '$(u_boot_tag)'
-    itemPattern: 'mmc_*'
-    downloadPath: '$(Build.ArtifactStagingDirectory)' 
+  - download: linux
+    artifact: linuxdebs
+    patterns: '**/linux-image-*.deb'
+    condition: not(startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    displayName: "Download linux-image Debian package from latest Pipelines build"
+  - script: |
+      set -ex
+      rm $(Pipeline.Workspace)/linux/linuxdebs/linux-image-*-dbg_*_arm64.deb
+      cp -r $(Pipeline.Workspace)/linux/linuxdebs $(Build.ArtifactStagingDirectory)
+      echo 'KERNEL_VERSION=""' >> build.vars
+    condition: not(startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    displayName: "Copy linux-image Debian package from latest Pipelines build to artifact staging directory"
+  - script: |
+      set -ex
+      echo 'KERNEL_VERSION="$(kernel_version)"' >> build.vars
+    condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/v')
+    displayName: "Set version of linux-image Debian package from repository to use"
 
-- download: linux
-  artifact: linuxdebs
-  patterns: '**/linux-image-*.deb'
-  condition: not(startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
-  displayName: "Download linux-image Debian package from latest Pipelines build"
-- script: |
-    set -ex
-    rm $(Pipeline.Workspace)/linux/linuxdebs/linux-image-*-dbg_*_arm64.deb
-    cp -r $(Pipeline.Workspace)/linux/linuxdebs $(Build.ArtifactStagingDirectory)
-    echo 'KERNEL_VERSION=""' >> build.vars
-  condition: not(startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
-  displayName: "Copy linux-image Debian package from latest Pipelines build to artifact staging directory"
-- script: |
-    set -ex
-    echo 'KERNEL_VERSION="$(kernel_version)"' >> build.vars
-  condition: startsWith(variables['Build.SourceBranch'], 'refs/tags/v')
-  displayName: "Set version of linux-image Debian package from repository to use"
+  - script: |
+      set -ex
+      . build.vars
+      sudo apt-get update
+      sudo apt-get install -y bmap-tools curl debian-archive-keyring dosfstools e2fsprogs gdisk gzip libglib2.0-0 libgpgme11 libostree-1-1 parted qemu-system-x86 qemu-user-static systemd-container zsync
+      sudo cp /usr/share/keyrings/debian-archive-keyring.gpg /etc/apt/trusted.gpg.d/debian-archive-keyring.gpg
+      echo "deb http://deb.debian.org/debian testing main" | sudo tee /etc/apt/sources.list.d/debian-testing.list
+      sudo apt-get update
+      sudo apt-get install --no-install-recommends -y debos
+      if [ -n "$KERNEL_VERSION" ]; then
+        sudo debos --verbose --artifactdir="$(Build.ArtifactStagingDirectory)" --template-var="repo_kernel_version:${KERNEL_VERSION}" --template-var="suite:$(suite)" recipes/rockpro64.yaml
+      else
+        sudo debos --verbose --artifactdir="$(Build.ArtifactStagingDirectory)" --template-var="suite:$(suite)" recipes/rockpro64.yaml
+      fi
+      sudo chown $(id -u):$(id -g) debian-$(suite)-rockpro64.img
+      gzip debian-$(suite)-rockpro64.img
+    displayName: Run debos to create image then gzip it
 
-- script: |
-    set -ex
-    . build.vars
-    sudo apt-get update
-    sudo apt-get install -y bmap-tools curl debian-archive-keyring dosfstools e2fsprogs gdisk gzip libglib2.0-0 libgpgme11 libostree-1-1 parted qemu-system-x86 qemu-user-static systemd-container zsync
-    sudo cp /usr/share/keyrings/debian-archive-keyring.gpg /etc/apt/trusted.gpg.d/debian-archive-keyring.gpg
-    echo "deb http://deb.debian.org/debian testing main" | sudo tee /etc/apt/sources.list.d/debian-testing.list
-    sudo apt-get update
-    sudo apt-get install --no-install-recommends -y debos
-    if [ -n "$KERNEL_VERSION" ]; then
-      sudo debos --verbose --artifactdir="$(Build.ArtifactStagingDirectory)" --template-var="repo_kernel_version:${KERNEL_VERSION}" recipes/rockpro64.yaml
-    else
-      sudo debos --verbose --artifactdir="$(Build.ArtifactStagingDirectory)" recipes/rockpro64.yaml
-    fi
-    sudo chown $(id -u):$(id -g) debian-buster-rockpro64.img
-    gzip debian-buster-rockpro64.img
-  displayName: Run debos to create image then gzip it
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: 'debian-$(suite)-rockpro64.img.gz'
+      artifactName: image
+    displayName: Publish image as build artifact
 
-- task: PublishBuildArtifacts@1
-  inputs:
-    pathToPublish: 'debian-buster-rockpro64.img.gz'
-    artifactName: image
-  displayName: Publish image as build artifact
-
-- task: GithubRelease@0
+- job: github_release
+  dependsOn:
+  - build_images
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
-  displayName: 'Create Github release with image'
-  inputs:
-    gitHubConnection: sigmaris_token
-    repositoryName: sigmaris/rockpro64-img-build
-    action: 'create'
-    target: '$(Build.SourceVersion)'
-    tagSource: 'auto'
-    title: 'RockPro64 Debian Buster image $(Build.SourceBranchName)'
-    assets: 'debian-buster-rockpro64.img.gz'
+  pool:
+    vmImage: 'ubuntu-18.04'
+  steps:
+  - checkout: none  #skip checking out the default repository resource
+
+  - task: DownloadBuildArtifacts@0
+    displayName: 'Download image artifacts'
+    inputs:
+      artifactName: image
+      downloadPath: '$(System.DefaultWorkingDirectory)'
+
+  - script: |
+      cp $(System.DefaultWorkingDirectory)/image/* '$(Build.ArtifactStagingDirectory)'
+    displayName: Copy build artifacts to staging directory
+
+  - task: GithubRelease@0
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
+    displayName: 'Create Github release with images'
+    inputs:
+      gitHubConnection: sigmaris_token
+      repositoryName: sigmaris/rockpro64-img-build
+      action: 'create'
+      target: '$(Build.SourceVersion)'
+      tagSource: 'auto'
+      title: 'RockPro64 Debian images $(Build.SourceBranchName)'
+      assets: '$(Build.ArtifactStagingDirectory)/*'
