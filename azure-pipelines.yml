@@ -81,9 +81,9 @@ jobs:
       sudo apt-get update
       sudo apt-get install --no-install-recommends -y debos
       if [ -n "$KERNEL_VERSION" ]; then
-        sudo debos --verbose --artifactdir="$(Build.ArtifactStagingDirectory)" --template-var="repo_kernel_version:${KERNEL_VERSION}" --template-var="suite:$(suite)" recipes/rockpro64.yaml
+        sudo debos --artifactdir="$(Build.ArtifactStagingDirectory)" --template-var="repo_kernel_version:${KERNEL_VERSION}" --template-var="suite:$(suite)" recipes/rockpro64.yaml
       else
-        sudo debos --verbose --artifactdir="$(Build.ArtifactStagingDirectory)" --template-var="suite:$(suite)" recipes/rockpro64.yaml
+        sudo debos --artifactdir="$(Build.ArtifactStagingDirectory)" --template-var="suite:$(suite)" recipes/rockpro64.yaml
       fi
       sudo chown $(id -u):$(id -g) debian-$(suite)-rockpro64.img
       gzip debian-$(suite)-rockpro64.img
