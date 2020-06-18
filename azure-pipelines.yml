@@ -25,7 +25,7 @@ trigger:
 jobs:
 - job: build_images
   pool:
-    vmImage: 'ubuntu-18.04'
+    vmImage: 'ubuntu-20.04'
   strategy:
     matrix:
       debian_buster:
@@ -75,11 +75,7 @@ jobs:
       set -ex
       . build.vars
       sudo apt-get update
-      sudo apt-get install -y bmap-tools curl debian-archive-keyring dosfstools e2fsprogs gdisk gzip libglib2.0-0 libgpgme11 libostree-1-1 parted qemu-system-x86 qemu-user-static systemd-container zsync
-      sudo cp /usr/share/keyrings/debian-archive-keyring.gpg /etc/apt/trusted.gpg.d/debian-archive-keyring.gpg
-      echo "deb http://deb.debian.org/debian buster main" | sudo tee /etc/apt/sources.list.d/debian-buster.list
-      sudo apt-get update
-      sudo apt-get install --no-install-recommends -y debos
+      sudo apt-get install -y debian-archive-keyring debos
       if [ -n "$KERNEL_VERSION" ]; then
         sudo debos --artifactdir="$(Build.ArtifactStagingDirectory)" --template-var="repo_kernel_version:${KERNEL_VERSION}" --template-var="suite:$(suite)" recipes/rockpro64.yaml
       else
@@ -100,7 +96,7 @@ jobs:
   - build_images
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/v'))
   pool:
-    vmImage: 'ubuntu-18.04'
+    vmImage: 'ubuntu-20.04'
   steps:
   - checkout: none  #skip checking out the default repository resource
 
