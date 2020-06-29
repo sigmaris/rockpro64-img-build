@@ -1,5 +1,6 @@
 {{- $suite := or .suite "buster" -}}
-{{- $default_image := printf "debian-%s-rockpro64.img" $suite -}}
+{{- $dist := or .dist "debian" -}}
+{{- $default_image := printf "%s-%s-rockpro64.img" $dist $suite -}}
 {{- $image := or .image $default_image -}}
 architecture: arm64
 
@@ -11,11 +12,18 @@ actions:
 {{ else }}
   - action: debootstrap
     suite: "{{ $suite }}"
+    keyring-file: /usr/share/keyrings/{{ $dist }}-archive-keyring.gpg
     components:
       - main
+{{ if eq $dist "debian" }}
       - contrib
       - non-free
     mirror: https://deb.debian.org/debian
+{{ else }}
+      - restricted
+      - universe
+    mirror: http://ports.ubuntu.com
+{{ end }}
     description: debootstrap root filesystem from scratch
 
   - action: pack
@@ -58,6 +66,13 @@ actions:
     source: ../overlays/u-boot-menu
     description: Add configuration for u-boot-menu
 
+{{ if eq $dist "ubuntu" }}
+  - action: run
+    chroot: true
+    command: sed -i 's#U_BOOT_MENU_LABEL="Debian GNU/Linux"#U_BOOT_MENU_LABEL="Ubuntu GNU/Linux"#' /etc/default/u-boot
+    description: Set U-Boot menu labels to "Ubuntu GNU/Linux"
+{{ end }}
+
   - action: overlay
     source: ../overlays/firstboot
     description: >-
@@ -79,6 +94,7 @@ actions:
     source: ../overlays/apt-repo
     description: Add our custom APT repo GPG key and blacklist
 
+{{ if eq $dist "debian" }}
   - action: run
     chroot: true
     command: echo "deb http://sigmaris.github.io/rockpkgs {{ $suite }} main" > /etc/apt/sources.list.d/sigmaris_rockpkgs.list
@@ -90,11 +106,12 @@ actions:
     command: echo "deb http://deb.debian.org/debian buster-backports main" > /etc/apt/sources.list.d/buster_backports.list
     description: Add the buster-backports repository
 {{ end }}
-
+{{ end }}
   - action: run
     chroot: true
     script: ../scripts/apt-repo.sh
     description: Trust our custom APT repo's GPG key then remove it
+
 {{ if .repo_kernel_version }}
   - action: apt
     packages:
@@ -144,7 +161,7 @@ actions:
   - action: image-partition
     description: Partition according to Rockchip's partition format
     imagename: "{{ $image }}"
-    imagesize: 700MB
+    imagesize: {{ if eq $dist "ubuntu" }}800MB{{ else }}700MB{{ end }}
     partitiontype: gpt
     mountpoints:
       - mountpoint: /
