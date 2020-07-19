@@ -29,9 +29,14 @@ jobs:
   strategy:
     matrix:
       debian_buster:
+        dist: debian
         suite: buster
       debian_bullseye:
+        dist: debian
         suite: bullseye
+      ubuntu_focal:
+        dist: ubuntu
+        suite: focal
   steps:
   - download: uboot
     artifact: mmc_u-boot
@@ -76,18 +81,19 @@ jobs:
       . build.vars
       sudo apt-get update
       sudo apt-get install -y debian-archive-keyring debos
+      DEBOS_TEMPLATE_VARS=("dist:$(dist)")
+      DEBOS_TEMPLATE_VARS+=("suite:$(suite)")
       if [ -n "$KERNEL_VERSION" ]; then
-        sudo debos --artifactdir="$(Build.ArtifactStagingDirectory)" --template-var="repo_kernel_version:${KERNEL_VERSION}" --template-var="suite:$(suite)" recipes/rockpro64.yaml
-      else
-        sudo debos --artifactdir="$(Build.ArtifactStagingDirectory)" --template-var="suite:$(suite)" recipes/rockpro64.yaml
+        DEBOS_TEMPLATE_VARS+=("repo_kernel_version:${KERNEL_VERSION}")
       fi
-      sudo chown $(id -u):$(id -g) debian-$(suite)-rockpro64.img
-      gzip debian-$(suite)-rockpro64.img
+      sudo debos --artifactdir="$(Build.ArtifactStagingDirectory)" "${DEBOS_TEMPLATE_VARS[@]/#/--template-var=}" recipes/rockpro64.yaml
+      sudo chown $(id -u):$(id -g) $(dist)-$(suite)-rockpro64.img
+      gzip $(dist)-$(suite)-rockpro64.img
     displayName: Run debos to create image then gzip it
 
   - task: PublishBuildArtifacts@1
     inputs:
-      pathToPublish: 'debian-$(suite)-rockpro64.img.gz'
+      pathToPublish: '$(dist)-$(suite)-rockpro64.img.gz'
       artifactName: image
     displayName: Publish image as build artifact
 
@@ -118,5 +124,5 @@ jobs:
       action: 'create'
       target: '$(Build.SourceVersion)'
       tagSource: 'auto'
-      title: 'RockPro64 Debian images $(Build.SourceBranchName)'
+      title: 'RockPro64 images $(Build.SourceBranchName)'
       assets: '$(Build.ArtifactStagingDirectory)/*'
