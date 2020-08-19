@@ -1,0 +1,12 @@
+# Enable updating u-boot custom menu?
+U_BOOT_UPDATE="true"
+# Label for kernel options
+U_BOOT_MENU_LABEL="Debian GNU/Linux"
+# Kernel command line
+U_BOOT_PARAMETERS="earlycon=uart8250,mmio32,0xff1a0000 console=ttyS2,1500000n8 ro panic=10 cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory swapaccount=1"
+# Root device (if empty is found from fstab or current kernel commandline)
+U_BOOT_ROOT=""
+# Timeout for boot menu in seconds
+U_BOOT_TIMEOUT="5"
+# Device Tree overlays to apply in space-separated list, e.g. coolingfan
+U_BOOT_OVERLAYS=""

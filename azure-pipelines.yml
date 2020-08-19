@@ -80,7 +80,7 @@ jobs:
       set -ex
       . build.vars
       sudo apt-get update
-      sudo apt-get install -y debian-archive-keyring debos
+      sudo apt-get install -y debian-archive-keyring debos device-tree-compiler
       DEBOS_TEMPLATE_VARS=("dist:$(dist)")
       DEBOS_TEMPLATE_VARS+=("suite:$(suite)")
       if [ -n "$KERNEL_VERSION" ]; then

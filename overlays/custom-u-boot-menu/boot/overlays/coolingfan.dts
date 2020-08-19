@@ -1,0 +1,56 @@
+/dts-v1/;
+/plugin/;
+
+/{
+	compatible = "pine64,rockpro64";
+
+	fragment@0 {
+		target-path="/";
+
+		__overlay__ {
+			fan: pwm-fan {
+				#cooling-cells = <2>;
+				cooling-levels = <0 108 180 255>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target-path="/thermal-zones/cpu";
+
+		__overlay__ {
+			trips {
+				cpu_high0: cpu_high0 {
+					temperature = <54000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+				cpu_high1: cpu_high1 {
+					temperature = <59000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+				cpu_high2: cpu_high2 {
+					temperature = <64000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+			};
+
+			cooling-maps {
+				map2 {
+					trip = <&cpu_high0>;
+					cooling-device = <&fan 0 1>;
+				};
+				map3 {
+					trip = <&cpu_high1>;
+					cooling-device = <&fan 1 2>;
+				};
+				map4 {
+					trip = <&cpu_high2>;
+					cooling-device = <&fan 2 3>;
+				};
+			};
+		};
+	};
+};

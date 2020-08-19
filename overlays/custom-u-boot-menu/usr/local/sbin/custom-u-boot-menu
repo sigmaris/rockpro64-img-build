@@ -1,0 +1,121 @@
+#!/bin/bash
+
+## Copyright (C) 2006-2012 Daniel Baumann <daniel.baumann@progress-technologies.net>
+## Copyright (C) 2016-2017 Riku Voipio    <riku.voipio@linaro.org>
+##
+## This program comes with ABSOLUTELY NO WARRANTY; for details see COPYING.
+## This is free software, and you are welcome to redistribute it
+## under certain conditions; see COPYING for details.
+
+set -e
+
+_U_BOOT_ENV_FILE="/boot/uEnv.txt"
+
+Update ()
+{
+	 # Upate target file using source content
+	_TARGET="${1}"
+	_SOURCE="${2}"
+
+	_TMPFILE="${_TARGET}.tmp"
+	rm -f "${_TMPFILE}"
+
+	echo "${_SOURCE}" > "${_TMPFILE}"
+
+	if [ -e "${_TARGET}" ] && cmp -s "${_TARGET}" "${_TMPFILE}"
+	then
+		rm -f "${_TMPFILE}"
+	else
+		# FIXME: should use fsync here
+		echo "P: Updating ${_TARGET}..."
+		mv -f "${_TMPFILE}" "${_TARGET}"
+	fi
+}
+
+# Reading the default file
+if [ -e /etc/default/custom-u-boot-menu ]
+then
+	. /etc/default/custom-u-boot-menu
+fi
+
+U_BOOT_UPDATE="${U_BOOT_UPDATE:-true}"
+
+if [ "${U_BOOT_UPDATE}" != "true" ]
+then
+	echo "P: u-boot custom menu update is disabled in /etc/default/custom-u-boot-menu."
+
+	exit 0
+fi
+
+# Setting defaults if /etc/default/custom-u-boot-menu is missing
+U_BOOT_TIMEOUT="${U_BOOT_TIMEOUT:-20}"
+U_BOOT_MENU_LABEL="${U_BOOT_MENU_LABEL:-Boot Linux kernel}"
+U_BOOT_PARAMETERS="${U_BOOT_PARAMETERS:-ro quiet}"
+U_BOOT_FDT_DIR="${U_BOOT_FDT_DIR:-/usr/lib/linux-image-}"
+
+# Find parameter for root from fstab
+if [ -z "${U_BOOT_ROOT}" ]
+then
+	# Find root partition
+	while read _LINE
+	do
+
+read _FS_SPEC _FS_FILE _FS_VFSTYPE _FS_MNTOPS _FS_FREQ _FS_PASSNO << EOF
+${_LINE}
+EOF
+
+		if [ "${_FS_SPEC}" != "#" ] && [ "${_FS_FILE}" = "/" ]
+		then
+			U_BOOT_ROOT="root=${_FS_SPEC}"
+			break
+		fi
+	done < /etc/fstab
+fi
+
+# if not in fstab, try from current kernel arguments
+if [ -z "${U_BOOT_ROOT}" ]
+then
+	for param in `cat /proc/cmdline`
+	do
+		if [[ $param == root=* ]]
+		then
+			U_BOOT_ROOT="$param"
+			break
+		fi
+	done
+fi
+
+# Find linux versions
+_VERSIONS="$(linux-version list | linux-version sort --reverse)"
+
+# Find boot directory as seen in u-boot, and path prefix while in linux
+if [ "$(stat --printf %d /)" = "$(stat --printf %d /boot)" ]
+then
+	# / and /boot are on the same filesystem
+	_BOOT_DIRECTORY="/boot"
+	_BOOT_PATH=""
+else
+	# / and /boot are not on the same filesystem
+	_BOOT_DIRECTORY=""
+	_BOOT_PATH="/boot"
+fi
+
+_CONFIG="\
+menu_tmout=${U_BOOT_TIMEOUT}
+bootargs=${U_BOOT_ROOT} ${U_BOOT_PARAMETERS}
+fdtdir=${U_BOOT_FDT_DIR}
+overlays=${U_BOOT_OVERLAYS}"
+
+for _VERSION in ${_VERSIONS}
+do
+	echo "P: Writing config for /boot/vmlinuz-${_VERSION}..."
+
+	_NUMBER="${_NUMBER:-0}"
+
+    _CONFIG="${_CONFIG}
+bootmenu_${_NUMBER}=${U_BOOT_MENU_LABEL} ${_VERSION}=kernelver=${_VERSION}; run custom_linux_boot"
+
+	_NUMBER="$((${_NUMBER} + 1))"
+done
+
+Update "$_U_BOOT_ENV_FILE" "$_CONFIG"

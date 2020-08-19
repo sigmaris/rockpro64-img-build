@@ -47,10 +47,8 @@ actions:
       - openssh-server
       - parted
       - sudo
-      - u-boot-menu
-{{ if eq $suite "buster" }}
       - u-boot-tools
-{{ else }}
+{{ if eq $suite "bullseye" }}
       - libubootenv-tool
 {{ end }}
       - vim
@@ -63,13 +61,13 @@ actions:
     description: Disable resuming from hibernation as it causes delay in boot
 
   - action: overlay
-    source: ../overlays/u-boot-menu
-    description: Add configuration for u-boot-menu
+    source: ../overlays/custom-u-boot-menu
+    description: Add configuration for custom U-Boot menu
 
 {{ if eq $dist "ubuntu" }}
   - action: run
     chroot: true
-    command: sed -i 's#U_BOOT_MENU_LABEL="Debian GNU/Linux"#U_BOOT_MENU_LABEL="Ubuntu GNU/Linux"#' /etc/default/u-boot
+    command: sed -i 's#U_BOOT_MENU_LABEL="Debian GNU/Linux"#U_BOOT_MENU_LABEL="Ubuntu GNU/Linux"#' /etc/default/custom-u-boot-menu
     description: Set U-Boot menu labels to "Ubuntu GNU/Linux"
 {{ end }}
 
@@ -204,10 +202,23 @@ actions:
 
   - action: run
     chroot: true
-    command: /usr/sbin/u-boot-update
-    description: >-
-      Run u-boot-update to create /boot/extlinux/extlinux.conf
-      and insert root=UUID=... from /etc/fstab prepared by filesystem-deploy step.
+    command: mkdir /boot/overlays
+    description: Create /boot/overlays directory
+
+  - action: run
+    chroot: false
+    script: ../scripts/compile-overlays.sh
+    description: Compile device tree overlays into /boot/overlays
+
+  - action: run
+    chroot: true
+    command: mkimage -C none -A arm -T script -d /boot/boot.cmd /boot/boot.scr
+    description: Compile boot script to U-Boot image
+
+  - action: run
+    chroot: true
+    command: /usr/local/sbin/custom-u-boot-menu
+    description: Create /boot/uEnv.txt with boot options
 
   - action: run
     chroot: false
