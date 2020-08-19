@@ -201,11 +201,6 @@ actions:
       (further chroot commands affect the root filesystem inside the image)
 
   - action: run
-    chroot: true
-    command: mkdir /boot/overlays
-    description: Create /boot/overlays directory
-
-  - action: run
     chroot: false
     script: ../scripts/compile-overlays.sh
     description: Compile device tree overlays into /boot/overlays
