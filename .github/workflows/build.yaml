@@ -1,0 +1,54 @@
+name: build
+
+on:
+  push:
+
+jobs:
+  build_images:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        include:
+          - dist: debian
+            suite: bullseye
+          - dist: debian
+            suite: bookworm
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: robinraju/release-downloader@v1.7
+        with:
+          repository: sigmaris/u-boot
+          latest: true
+          fileName: 'mmc_(idbloader|u-boot)\.i*'
+          out-file-path: uboot
+
+      - uses: robinraju/release-downloader@v1.7
+        with:
+          repository: sigmaris/linux
+          latest: true
+          fileName: 'linux-image-\d*_\d*_arm64.deb'
+          out-file-path: linuxdebs
+
+      - name: Build image with debos
+        run: |
+          mkdir artifacts
+          mv uboot/* artifacts
+          mv linuxdebs artifacts
+          sudo apt-get update
+          sudo apt-get install -y -u -V --no-install-recommends debian-archive-keyring debos device-tree-compiler qemu-user-static
+          DEBOS_TEMPLATE_VARS=("dist:${{ matrix.dist }}")
+          DEBOS_TEMPLATE_VARS+=("suite:${{ matrix.suite }}")
+          if [ -n "$KERNEL_VERSION" ]; then
+            DEBOS_TEMPLATE_VARS+=("repo_kernel_version:${KERNEL_VERSION}")
+          fi
+          sudo debos --artifactdir="$(pwd)/artifacts" "${DEBOS_TEMPLATE_VARS[@]/#/--template-var=}" recipes/rockpro64.yaml
+          sudo chown $(id -u):$(id -g) ${{ matrix.dist }}-${{ matrix.suite }}-rockpro64.img
+          gzip ${{ matrix.dist }}-${{ matrix.suite }}-rockpro64.img
+
+      - name: Upload gzipped image
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.dist }}-${{ matrix.suite }}-rockpro64.img.gz
+          path: ${{ matrix.dist }}-${{ matrix.suite }}-rockpro64.img.gz

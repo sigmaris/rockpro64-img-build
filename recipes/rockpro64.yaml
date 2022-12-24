@@ -48,8 +48,10 @@ actions:
       - parted
       - sudo
       - u-boot-tools
-{{ if eq $suite "bullseye" }}
+      - u-boot-menu
+{{ if ne $suite "buster" }}
       - libubootenv-tool
+      - systemd-timesyncd
 {{ end }}
       - vim
       - wget
@@ -60,14 +62,10 @@ actions:
     command: echo RESUME=none > /etc/initramfs-tools/conf.d/resume
     description: Disable resuming from hibernation as it causes delay in boot
 
-  - action: overlay
-    source: ../overlays/custom-u-boot-menu
-    description: Add configuration for custom U-Boot menu
-
 {{ if eq $dist "ubuntu" }}
   - action: run
     chroot: true
-    command: sed -i 's#U_BOOT_MENU_LABEL="Debian GNU/Linux"#U_BOOT_MENU_LABEL="Ubuntu GNU/Linux"#' /etc/default/custom-u-boot-menu
+    command: sed -i 's#U_BOOT_MENU_LABEL="Debian GNU/Linux"#U_BOOT_MENU_LABEL="Ubuntu GNU/Linux"#' /etc/default/u-boot-menu
     description: Set U-Boot menu labels to "Ubuntu GNU/Linux"
 {{ end }}
 
@@ -92,7 +90,7 @@ actions:
     source: ../overlays/apt-repo
     description: Add our custom APT repo GPG key and blacklist
 
-{{ if eq $dist "debian" }}
+{{ if and (eq $dist "debian") (ne $suite "bookworm") }}
   - action: run
     chroot: true
     command: echo "deb http://sigmaris.github.io/rockpkgs {{ $suite }} main" > /etc/apt/sources.list.d/sigmaris_rockpkgs.list
@@ -104,11 +102,12 @@ actions:
     command: echo "deb http://deb.debian.org/debian buster-backports main" > /etc/apt/sources.list.d/buster_backports.list
     description: Add the buster-backports repository
 {{ end }}
-{{ end }}
+
   - action: run
     chroot: true
     script: ../scripts/apt-repo.sh
     description: Trust our custom APT repo's GPG key then remove it
+{{ end }}
 
 {{ if .repo_kernel_version }}
   - action: apt
@@ -152,10 +151,6 @@ actions:
     script: ../scripts/setup-networking.sh
     description: Use systemd tools for network config, DNS and time sync
 
-  - action: overlay
-    source: ../overlays/audio
-    description: Set sensible names and starting state for audio devices
-
   - action: image-partition
     description: Partition according to Rockchip's partition format
     imagename: "{{ $image }}"
@@ -165,29 +160,21 @@ actions:
       - mountpoint: /
         partition: root
     partitions:
-      - name: loader1
+      - name: idbloader
         fs: none
         start: 64s
-        end: 8063s
-      - name: reserved1
-        fs: none
-        start: 8064s
         end: 8127s
       - name: env
         fs: none
         start: 8128s
-        end: 8191s
-      - name: reserved2
-        fs: none
-        start: 8192s
         end: 16383s
-      - name: loader2
+      - name: uboot
         fs: none
         start: 16384s
         end: 24575s
       - name: root
         fs: ext4
-        start: 262144s
+        start: 24576s
         end: 100%
         flags:
           - legacy_boot
@@ -201,19 +188,9 @@ actions:
       (further chroot commands affect the root filesystem inside the image)
 
   - action: run
-    chroot: false
-    script: ../scripts/compile-overlays.sh
-    description: Compile device tree overlays into /boot/overlays
-
-  - action: run
     chroot: true
-    command: mkimage -C none -A arm -T script -d /boot/boot.cmd /boot/boot.scr
-    description: Compile boot script to U-Boot image
-
-  - action: run
-    chroot: true
-    command: /usr/local/sbin/custom-u-boot-menu
-    description: Create /boot/uEnv.txt with boot options
+    command: /usr/sbin/u-boot-update
+    description: Create /boot/extlinux.conf with boot options
 
   - action: run
     chroot: false
@@ -225,14 +202,14 @@ actions:
   - action: raw
     origin: artifacts
     source: mmc_idbloader.img
-    partition: loader1
+    partition: idbloader
     offset: 0
     description: Write the U-Boot idbloader.img (TPL and SPL concatenated)
 
   - action: raw
     origin: artifacts
     source: mmc_u-boot.itb
-    partition: loader2
+    partition: uboot
     offset: 0
     description: Write the U-Boot main loader
 
