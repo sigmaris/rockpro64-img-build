@@ -1,4 +1,4 @@
-{{- $suite := or .suite "buster" -}}
+{{- $suite := or .suite "bookworm" -}}
 {{- $dist := or .dist "debian" -}}
 {{- $default_image := printf "%s-%s-rockpro64.img" $dist $suite -}}
 {{- $image := or .image $default_image -}}
@@ -18,6 +18,9 @@ actions:
 {{ if eq $dist "debian" }}
       - contrib
       - non-free
+{{ if eq $suite "bookworm" }}
+      - non-free-firmware
+{{ end }}
     mirror: https://deb.debian.org/debian
 {{ else }}
       - restricted
@@ -49,10 +52,11 @@ actions:
       - sudo
       - u-boot-tools
       - u-boot-menu
-{{ if ne $suite "buster" }}
       - libubootenv-tool
-      - systemd-timesyncd
+{{ if eq $suite "bookworm" }}
+      - systemd-resolved
 {{ end }}
+      - systemd-timesyncd
       - vim
       - wget
     description: install some minimal packages
@@ -90,18 +94,11 @@ actions:
     source: ../overlays/apt-repo
     description: Add our custom APT repo GPG key and blacklist
 
-{{ if and (eq $dist "debian") (ne $suite "bookworm") }}
+{{ if eq $dist "debian" }}
   - action: run
     chroot: true
     command: echo "deb http://sigmaris.github.io/rockpkgs {{ $suite }} main" > /etc/apt/sources.list.d/sigmaris_rockpkgs.list
     description: Configure our custom APT repo
-
-{{ if eq $suite "buster" }}
-  - action: run
-    chroot: true
-    command: echo "deb http://deb.debian.org/debian buster-backports main" > /etc/apt/sources.list.d/buster_backports.list
-    description: Add the buster-backports repository
-{{ end }}
 
   - action: run
     chroot: true
