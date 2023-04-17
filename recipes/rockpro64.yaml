@@ -51,6 +51,7 @@ actions:
       - u-boot-menu
 {{ if ne $suite "buster" }}
       - libubootenv-tool
+      - systemd-resolved
       - systemd-timesyncd
 {{ end }}
       - vim
