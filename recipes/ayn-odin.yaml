@@ -1,6 +1,6 @@
 {{- $suite := or .suite "bookworm" -}}
 {{- $dist := or .dist "debian" -}}
-{{- $default_image := printf "%s-%s-rockpro64.img" $dist $suite -}}
+{{- $default_image := printf "%s-%s-sdm845odin.img" $dist $suite -}}
 {{- $image := or .image $default_image -}}
 architecture: arm64
 
@@ -40,8 +40,8 @@ actions:
       - dbus
       - default-dbus-session-bus
       - file
-      - firmware-bluez
-      - firmware-brcm80211
+      - firmware-atheros
+      - firmware-qcom-soc
       - gdisk
       - gnupg
       - initramfs-tools
@@ -52,15 +52,13 @@ actions:
       - openssh-server
       - parted
       - sudo
-      - u-boot-tools
-      - u-boot-menu
-      - libubootenv-tool
 {{ if eq $suite "bookworm" }}
       - systemd-resolved
 {{ end }}
       - systemd-timesyncd
       - vim
       - wget
+      - wpasupplicant
     description: install some minimal packages
 
   - action: run
@@ -68,29 +66,11 @@ actions:
     command: echo RESUME=none > /etc/initramfs-tools/conf.d/resume
     description: Disable resuming from hibernation as it causes delay in boot
 
-{{ if eq $dist "ubuntu" }}
-  - action: run
-    chroot: true
-    command: sed -i 's#U_BOOT_MENU_LABEL="Debian GNU/Linux"#U_BOOT_MENU_LABEL="Ubuntu GNU/Linux"#' /etc/default/u-boot-menu
-    description: Set U-Boot menu labels to "Ubuntu GNU/Linux"
-{{ end }}
-
   - action: overlay
     source: ../overlays/ssh-keygen
     description: >-
       Set up script to run at first boot to
-      regenerate SSH host keys if missing.
-
-  - action: overlay
-    source: ../overlays/resize-rootfs
-    description: >-
-      Set up script to run at first boot to
-      resize root filesystem to fill disk/mmc/sd card
-
-  - action: run
-    chroot: true
-    command: systemctl enable resize-rootfs.service
-    description: Enable running resize-rootfs service at boot
+      regenerate SSH keys if missing
 
   - action: run
     chroot: true
@@ -144,7 +124,7 @@ actions:
 
   - action: run
     chroot: true
-    command: echo rockpro64 > /etc/hostname
+    command: echo odin > /etc/hostname
 
   - action: overlay
     source: ../overlays/networkd
@@ -202,22 +182,3 @@ actions:
     description: >-
       Replace /etc/resolv.conf with a symlink to systemd-resolved's stub resolver
       config file. This would break DNS inside the chroot so is done last.
-
-  - action: raw
-    origin: artifacts
-    source: mmc_idbloader.img
-    partition: idbloader
-    offset: 0
-    description: Write the U-Boot idbloader.img (TPL and SPL concatenated)
-
-  - action: raw
-    origin: artifacts
-    source: mmc_u-boot.itb
-    partition: uboot
-    offset: 0
-    description: Write the U-Boot main loader
-
-  - action: run
-    postprocess: true
-    description: Set loader partition flags
-    script: ../scripts/set-image-flags.sh "{{ $image }}"
