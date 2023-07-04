@@ -1,2 +1,4 @@
 *.img
 build.vars
+# Contains site-specific information
+/scripts/insert-wifi-details.sh

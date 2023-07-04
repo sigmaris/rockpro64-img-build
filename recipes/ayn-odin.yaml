@@ -18,9 +18,7 @@ actions:
 {{ if eq $dist "debian" }}
       - contrib
       - non-free
-{{ if eq $suite "bookworm" }}
       - non-free-firmware
-{{ end }}
     mirror: https://deb.debian.org/debian
 {{ else }}
       - restricted
@@ -51,11 +49,12 @@ actions:
       - mtd-utils
       - openssh-server
       - parted
+      - protection-domain-mapper
+      - rmtfs
       - sudo
-{{ if eq $suite "bookworm" }}
       - systemd-resolved
-{{ end }}
       - systemd-timesyncd
+      - tqftpserv
       - vim
       - wget
       - wpasupplicant
@@ -135,33 +134,36 @@ actions:
     script: ../scripts/setup-networking.sh
     description: Use systemd tools for network config, DNS and time sync
 
+{{ if .personalize }}
+  - action: run
+    chroot: true
+    script: ../scripts/insert-wifi-details.sh
+    description: Insert site-specific wifi details
+{{ end }}
+
   - action: image-partition
-    description: Partition according to Rockchip's partition format
+    description: Partition SD card image
     imagename: "{{ $image }}"
     imagesize: {{ if eq $dist "ubuntu" }}800MB{{ else }}700MB{{ end }}
     partitiontype: gpt
     mountpoints:
       - mountpoint: /
         partition: root
+      - mountpoint: /boot/efi
+        partition: efi
+        flags:
+          - boot
     partitions:
-      - name: idbloader
-        fs: none
-        start: 64s
-        end: 8127s
-      - name: env
-        fs: none
-        start: 8128s
-        end: 16383s
-      - name: uboot
-        fs: none
-        start: 16384s
-        end: 24575s
+      - name: efi
+        fs: vfat
+        start: 0%
+        end: 256MB
+        options:
+          - x-systemd.automount
       - name: root
         fs: ext4
-        start: 24576s
+        start: 256MB
         end: 100%
-        flags:
-          - legacy_boot
 
   - action: filesystem-deploy
     setup-fstab: true
@@ -171,10 +173,23 @@ actions:
       and switch the chroot to the mounted image's root filesystem
       (further chroot commands affect the root filesystem inside the image)
 
+  - action: apt
+    packages:
+      - grub-efi
+      - initramfs-tools
+      - linux-image-TODO
+
   - action: run
     chroot: true
-    command: /usr/sbin/u-boot-update
-    description: Create /boot/extlinux.conf with boot options
+    command: update-grub2
+
+  - action: run
+    chroot: true
+    command: grub2-install --target=arm64-efi --no-nvram
+
+  - action: run
+    chroot: true
+    command: mkdir -p /boot/efi/EFI/BOOT && cp /boot/efi/EFI/grub/grubaa64.efi /boot/efi/EFI/BOOT/BOOTAA64.EFI
 
   - action: run
     chroot: false
