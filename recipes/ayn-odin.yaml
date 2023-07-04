@@ -34,6 +34,7 @@ actions:
 {{ end }}
   - action: apt
     packages:
+      - bluez-firmware
       - curl
       - dbus
       - default-dbus-session-bus
