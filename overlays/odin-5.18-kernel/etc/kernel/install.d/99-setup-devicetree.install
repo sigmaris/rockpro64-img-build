@@ -1,0 +1,43 @@
+#!/bin/sh
+set -e
+
+COMMAND="${1:?}"
+KERNEL_VERSION="${2:?}"
+ENTRY_DIR_ABS="${3:?}"
+KERNEL_IMAGE="$4"
+INITRD_OPTIONS_SHIFT=4
+
+[ "$KERNEL_INSTALL_LAYOUT" = "bls" ] || exit 0
+[ "$COMMAND" = "add" ] || exit 0
+
+MACHINE_ID="$KERNEL_INSTALL_MACHINE_ID"
+ENTRY_TOKEN="$KERNEL_INSTALL_ENTRY_TOKEN"
+BOOT_ROOT="$KERNEL_INSTALL_BOOT_ROOT"
+
+BOOT_MNT="$(stat -c %m "$BOOT_ROOT")"
+if [ "$BOOT_MNT" = '/' ]; then
+    ENTRY_DIR="$ENTRY_DIR_ABS"
+else
+    ENTRY_DIR="${ENTRY_DIR_ABS#"$BOOT_MNT"}"
+fi
+
+TRIES_FILE="${KERNEL_INSTALL_CONF_ROOT:-/etc/kernel}/tries"
+
+if [ -f "$TRIES_FILE" ]; then
+    read -r TRIES <"$TRIES_FILE"
+    if ! echo "$TRIES" | grep -q '^[0-9][0-9]*$'; then
+        echo "$TRIES_FILE does not contain an integer." >&2
+        exit 1
+    fi
+    LOADER_ENTRY="$BOOT_ROOT/loader/entries/$ENTRY_TOKEN-$KERNEL_VERSION+$TRIES.conf"
+else
+    LOADER_ENTRY="$BOOT_ROOT/loader/entries/$ENTRY_TOKEN-$KERNEL_VERSION.conf"
+fi
+
+DTBNAME="sdm845-ayn-odin.dtb"
+
+cp "/usr/lib/linux-image-${KERNEL_VERSION}/qcom/${DTBNAME}" "${ENTRY_DIR_ABS}/${DTBNAME}"
+
+sed -i -e 's/^\(options.*\)$/\1 rootwait clk_ignore_unused pd_ignore_unused/' "$LOADER_ENTRY"
+
+echo "devicetree ${ENTRY_DIR}/${DTBNAME}" >>"$LOADER_ENTRY"

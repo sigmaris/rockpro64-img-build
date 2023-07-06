@@ -47,7 +47,6 @@ actions:
       - locales
       - lsb-release
       - man-db
-      - mtd-utils
       - openssh-server
       - parted
       - protection-domain-mapper
@@ -69,8 +68,7 @@ actions:
   - action: overlay
     source: ../overlays/ssh-keygen
     description: >-
-      Set up script to run at first boot to
-      regenerate SSH keys if missing
+      Set up script to run at first boot to regenerate SSH keys if missing
 
   - action: run
     chroot: true
@@ -93,30 +91,6 @@ actions:
     description: Trust our custom APT repo's GPG key then remove it
 {{ end }}
 
-{{ if .repo_kernel_version }}
-  - action: apt
-    packages:
-      - linux-image-{{ .repo_kernel_version }}
-    description: Install pre-built kernel package from apt repository
-{{ else }}
-  - action: overlay
-    origin: artifacts
-    source: linuxdebs
-    destination: /linuxdebs
-    description: Copy in pre-built kernel package files
-
-  - action: run
-    command: dpkg -i /linuxdebs/*.deb
-    chroot: true
-    label: installkernel
-    description: Install pre-built kernel package files
-
-  - action: run
-    command: rm -rf /linuxdebs
-    chroot: true
-    label: cleanupkernel
-    description: Clean pre-built kernel package files off filesystem after installation.
-{{ end }}
   - action: run
     chroot: true
     script: ../scripts/setup-user.sh
@@ -125,6 +99,20 @@ actions:
   - action: run
     chroot: true
     command: echo odin > /etc/hostname
+
+  - action: overlay
+    source: ../overlays/wpa-supplicant
+    description: Configure wpa-supplicant for connecting to WiFi networks
+
+  - action: run
+    chroot: true
+    command: systemctl disable wpa_supplicant.service
+    description: Disable DBUS-controlled wpa_supplicant
+
+  - action: run
+    chroot: true
+    command: systemctl enable wpa_supplicant@wlan0.service
+    description: Enable wpa_supplicant for wlan0
 
   - action: overlay
     source: ../overlays/networkd
@@ -145,7 +133,7 @@ actions:
   - action: image-partition
     description: Partition SD card image
     imagename: "{{ $image }}"
-    imagesize: {{ if eq $dist "ubuntu" }}800MB{{ else }}700MB{{ end }}
+    imagesize: 1100MB
     partitiontype: gpt
     mountpoints:
       - mountpoint: /
@@ -176,21 +164,22 @@ actions:
 
   - action: apt
     packages:
-      - grub-efi
       - initramfs-tools
-      - linux-image-TODO
+      - systemd-boot
+
+  - action: overlay
+    source: ../overlays/odin-5.18-kernel
+    description: Install Project Valhalla 5.18 kernel
 
   - action: run
     chroot: true
-    command: update-grub2
-
+    command: kernel-install add 5.18.3-odin-arm64 /boot/vmlinuz-5.18.3-odin-arm64
+    description: Add 5.18 kernel to systemd-boot
+  
   - action: run
     chroot: true
-    command: grub2-install --target=arm64-efi --no-nvram
-
-  - action: run
-    chroot: true
-    command: mkdir -p /boot/efi/EFI/BOOT && cp /boot/efi/EFI/grub/grubaa64.efi /boot/efi/EFI/BOOT/BOOTAA64.EFI
+    command: apt-get clean
+    description: Save space by removing apt cache
 
   - action: run
     chroot: false
