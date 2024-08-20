@@ -1,0 +1,6 @@
+#!/bin/bash
+echo "*** rc.local ***"
+set -x
+ip addr
+networkctl
+networkctl status

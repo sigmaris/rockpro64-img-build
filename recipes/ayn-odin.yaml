@@ -55,9 +55,12 @@ actions:
       - systemd-resolved
       - systemd-timesyncd
       - tqftpserv
+      - u-boot-tools
+      - u-boot-menu
       - vim
       - wget
       - wpasupplicant
+      - zstd
     description: install some minimal packages
 
   - action: run
@@ -79,7 +82,7 @@ actions:
     source: ../overlays/apt-repo
     description: Add our custom APT repo GPG key and blacklist
 
-{{ if eq $dist "debian" }}
+{{ if and (eq $dist "debian") (eq $suite "bookworm") }}
   - action: run
     chroot: true
     command: echo "deb http://sigmaris.github.io/rockpkgs {{ $suite }} main" > /etc/apt/sources.list.d/sigmaris_rockpkgs.list
@@ -130,28 +133,48 @@ actions:
     description: Insert site-specific wifi details
 {{ end }}
 
+  - action: overlay
+    origin: artifacts
+    source: linuxdebs
+    destination: /linuxdebs
+    description: Copy in pre-built kernel package files
+
+  - action: run
+    command: dpkg -i /linuxdebs/*.deb
+    chroot: true
+    description: Install pre-built kernel package files
+
+  - action: run
+    command: rm -rf /linuxdebs
+    chroot: true
+    description: Clean pre-built kernel package files off filesystem after installation.
+
+  - action: overlay
+    source: ../overlays/odin-debugging
+    description: Configure things for debugging bootup
+
+  - action: run
+    chroot: true
+    command: systemctl disable getty@tty1.service
+    description: Disable getty for debugging bootup
+
+  - action: run
+    chroot: true
+    command: apt-get clean
+    description: Save space by removing apt cache
+
   - action: image-partition
     description: Partition SD card image
     imagename: "{{ $image }}"
-    imagesize: 1100MB
+    imagesize: 1500MB
     partitiontype: gpt
     mountpoints:
       - mountpoint: /
         partition: root
-      - mountpoint: /boot/efi
-        partition: efi
-        flags:
-          - boot
     partitions:
-      - name: efi
-        fs: vfat
-        start: 0%
-        end: 256MB
-        options:
-          - x-systemd.automount
       - name: root
         fs: ext4
-        start: 256MB
+        start: 0%
         end: 100%
 
   - action: filesystem-deploy
@@ -161,25 +184,6 @@ actions:
       Deploy filesystem onto image, generate /etc/fstab and /etc/kernel/cmdline,
       and switch the chroot to the mounted image's root filesystem
       (further chroot commands affect the root filesystem inside the image)
-
-  - action: apt
-    packages:
-      - initramfs-tools
-      - systemd-boot
-
-  - action: overlay
-    source: ../overlays/odin-5.18-kernel
-    description: Install Project Valhalla 5.18 kernel
-
-  - action: run
-    chroot: true
-    command: kernel-install add 5.18.3-odin-arm64 /boot/vmlinuz-5.18.3-odin-arm64
-    description: Add 5.18 kernel to systemd-boot
-  
-  - action: run
-    chroot: true
-    command: apt-get clean
-    description: Save space by removing apt cache
 
   - action: run
     chroot: false

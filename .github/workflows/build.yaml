@@ -37,7 +37,7 @@ jobs:
           mv uboot/* artifacts
           mv linuxdebs artifacts
           sudo apt-get update
-          sudo apt-get install -y -u -V --no-install-recommends debian-archive-keyring debos device-tree-compiler qemu-user-static
+          sudo apt-get install -y -u -V --no-install-recommends debian-archive-keyring debos device-tree-compiler dosfstools parted qemu-user-static zstd
           DEBOS_TEMPLATE_VARS=("dist:${{ matrix.dist }}")
           DEBOS_TEMPLATE_VARS+=("suite:${{ matrix.suite }}")
           if [ -n "$KERNEL_VERSION" ]; then
