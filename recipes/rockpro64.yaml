@@ -55,6 +55,7 @@ actions:
       - u-boot-tools
       - u-boot-menu
       - libubootenv-tool
+      - systemd-repart
 {{ if eq $suite "bookworm" }}
       - systemd-resolved
 {{ end }}
@@ -86,11 +87,6 @@ actions:
     description: >-
       Set up script to run at first boot to
       resize root filesystem to fill disk/mmc/sd card
-
-  - action: run
-    chroot: true
-    command: systemctl enable resize-rootfs.service
-    description: Enable running resize-rootfs service at boot
 
   - action: run
     chroot: true
@@ -163,6 +159,8 @@ actions:
     mountpoints:
       - mountpoint: /
         partition: root
+        options: 
+          - "x-systemd.growfs"
     partitions:
       - name: idbloader
         fs: none

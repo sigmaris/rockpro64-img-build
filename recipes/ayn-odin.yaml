@@ -52,6 +52,7 @@ actions:
       - protection-domain-mapper
       - rmtfs
       - sudo
+      - systemd-repart
       - systemd-resolved
       - systemd-timesyncd
       - tqftpserv
