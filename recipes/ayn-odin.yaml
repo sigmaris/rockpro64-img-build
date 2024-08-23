@@ -1,5 +1,7 @@
 {{- $suite := or .suite "bookworm" -}}
 {{- $dist := or .dist "debian" -}}
+{{- $contrib := or .contrib "true" -}}
+{{- $nonfree := or .nonfree "true" -}}
 {{- $default_image := printf "%s-%s-sdm845odin.img" $dist $suite -}}
 {{- $image := or .image $default_image -}}
 architecture: arm64
@@ -32,6 +34,22 @@ actions:
     compression: gz
     description: save basic root filesystem for later use
 {{ end }}
+
+  - action: apt
+    recommends: false
+    packages:
+      - mobian-archive-keyring
+    description: Install mobian-archive-keyring
+
+  - action: overlay
+    description: Enable Mobian repository
+    source: ../overlays/mobian-apt
+
+  - action: run
+    description: Setup Mobian repository
+    chroot: true
+    script: ../scripts/setup-mobian-apt.sh {{ $suite }} {{ $suite }} {{ $contrib }} {{ $nonfree }}
+
   - action: apt
     packages:
       - bluez-firmware
@@ -44,22 +62,28 @@ actions:
       - gdisk
       - gnupg
       - initramfs-tools
+      - libdrm-freedreno1
+      - libqmi-utils
       - locales
       - lsb-release
+      - make-dynpart-mappings
       - man-db
       - openssh-server
       - parted
       - protection-domain-mapper
+      - qcom-phone-utils
+      - qrtr-tools
       - rmtfs
       - sudo
       - systemd-repart
       - systemd-resolved
       - systemd-timesyncd
       - tqftpserv
-      - u-boot-tools
-      - u-boot-menu
+      # - u-boot-tools
+      # - u-boot-menu
       - vim
       - wget
+      - wireless-regdb
       - wpasupplicant
       - zstd
     description: install some minimal packages
@@ -72,7 +96,14 @@ actions:
   - action: overlay
     source: ../overlays/ssh-keygen
     description: >-
-      Set up script to run at first boot to regenerate SSH keys if missing
+      Set up script to run at first boot to
+      regenerate SSH host keys if missing.
+
+  - action: overlay
+    source: ../overlays/resize-rootfs
+    description: >-
+      Set up script to run at first boot to
+      resize root filesystem to fill disk/mmc/sd card
 
   - action: run
     chroot: true
@@ -103,6 +134,21 @@ actions:
   - action: run
     chroot: true
     command: echo odin > /etc/hostname
+    description: Set hostname to 'odin'
+  
+  - action: run
+    chroot: true
+    command: echo qcom/sdm845-ayn-odin-m2.dtb > /etc/kernel/devicetree
+    description: Use devicetree qcom/sdm845-ayn-odin-m2.dtb
+
+  - action: overlay
+    source: ../overlays/wlan-mac-from-android
+    description: Script to set wlan0 persistent MAC address from Android
+
+  - action: run
+    chroot: true
+    command: systemctl enable set-wlan-mac.service
+    description: Set wlan0 persistent MAC address from Android on 1st boot
 
   - action: overlay
     source: ../overlays/wpa-supplicant
@@ -155,9 +201,14 @@ actions:
     description: Configure things for debugging bootup
 
   - action: run
-    chroot: true
     command: systemctl disable getty@tty1.service
-    description: Disable getty for debugging bootup
+    chroot: true
+    description: Disable getty clearing screen so we see console messages
+
+  - action: run
+    command: chmod +x /etc/rc.local
+    chroot: true
+    description: Make /etc/rc.local executable
 
   - action: run
     chroot: true
@@ -167,15 +218,28 @@ actions:
   - action: image-partition
     description: Partition SD card image
     imagename: "{{ $image }}"
-    imagesize: 1500MB
+    imagesize: 2000MB
     partitiontype: gpt
     mountpoints:
       - mountpoint: /
         partition: root
+        options: 
+          - "x-systemd.growfs"
+      - mountpoint: /boot/efi
+        partition: EFI
     partitions:
-      - name: root
-        fs: ext4
+      - name: EFI
+        parttype: c12a7328-f81f-11d2-ba4b-00a0c93ec93b # EFI System Partition
+        fs: vfat
         start: 0%
+        end: 256MB
+        flags:
+          - esp
+          - boot
+      - name: root
+        parttype: b921b045-1df0-41c3-af44-4c6f280d3fae # Root Partition (64-bit ARM/AArch64)
+        fs: ext4
+        start: 256MB
         end: 100%
 
   - action: filesystem-deploy
@@ -185,6 +249,21 @@ actions:
       Deploy filesystem onto image, generate /etc/fstab and /etc/kernel/cmdline,
       and switch the chroot to the mounted image's root filesystem
       (further chroot commands affect the root filesystem inside the image)
+
+  - action: run
+    command: sed -i -e 's/$/ console=tty0/' /etc/kernel/cmdline
+    chroot: true
+    description: Add console=tty0 to kernel cmdline
+
+  - action: apt
+    packages:
+      - systemd-boot
+      - initramfs-tools
+
+  - action: run
+    chroot: true
+    command: apt-get clean
+    description: Save space by removing apt cache
 
   - action: run
     chroot: false

@@ -1,6 +1,49 @@
 #!/bin/bash
 echo "*** rc.local ***"
+setterm -blank 1
+setterm -powerdown 1
+
+echo "*** USB network gadget setup ***"
+CONFIGFS=/sys/kernel/config/usb_gadget/g1
+# Don't do anything if the USB gadget already exists
+if ! [ -d $CONFIGFS ]
+then
+    # Required to make a composite gadget
+    modprobe libcomposite
+
+    # Create all required directories
+    echo "Creating the USB gadget..."
+    mkdir -p $CONFIGFS
+    mkdir -p $CONFIGFS/strings/0x409
+    mkdir -p $CONFIGFS/configs/c.1
+    mkdir -p $CONFIGFS/configs/c.1/strings/0x409
+
+    # Setup IDs and strings
+    USB_VENDORID="0x1D6B"  # Linux Foundation
+    USB_PRODUCTID="0x0104" # Multifunction composite gadget
+    USB_MANUF="AYN"
+    USB_PRODUCT="Odin USB Ethernet"
+    USB_SERIAL=$(sha256sum < /etc/machine-id | cut -d' ' -f1)
+
+    echo $USB_VENDORID > $CONFIGFS/idVendor
+    echo $USB_PRODUCTID > $CONFIGFS/idProduct
+    echo $USB_MANUF > $CONFIGFS/strings/0x409/manufacturer
+    echo $USB_PRODUCT > $CONFIGFS/strings/0x409/product
+    echo $USB_SERIAL > $CONFIGFS/strings/0x409/serialnumber
+
+    # Create ECM (ethernet) function
+    mkdir $CONFIGFS/functions/ecm.usb0
+
+    # Create configuration
+    echo "Ethernet" > $CONFIGFS/configs/c.1/strings/0x409/configuration
+    ln -s $CONFIGFS/functions/ecm.usb0 $CONFIGFS/configs/c.1
+
+    UDC="$(ls /sys/class/udc)"
+    echo "$UDC" > $CONFIGFS/UDC
+fi
+
 set -x
+sleep 1
 ip addr
 networkctl
 networkctl status

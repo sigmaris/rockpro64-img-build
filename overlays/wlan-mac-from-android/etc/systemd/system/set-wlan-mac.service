@@ -1,0 +1,13 @@
+[Unit]
+Description=Set wlan0 persistent MAC address
+Wants=sysinit.target
+After=-.mount tmp.mount
+Before=systemd-networkd.service
+ConditionPathExists=!/etc/udev/rules.d/10-wlan0-persistent-mac-address.rules
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/set-wlan-mac.sh
+
+[Install]
+WantedBy=basic.target
