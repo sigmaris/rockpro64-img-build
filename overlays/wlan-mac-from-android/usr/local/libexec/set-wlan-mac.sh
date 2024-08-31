@@ -20,5 +20,5 @@ then
 fi
 
 cat > /etc/udev/rules.d/10-wlan0-persistent-mac-address.rules <<EOT
-ACTION=="add", SUBSYSTEM=="net", INTERFACE=="wlan0", PROGRAM="/sbin/ip link set %k address ${wlan_mac:0:2}:${wlan_mac:2:2}:${wlan_mac:4:2}:${wlan_mac:6:2}:${wlan_mac:8:2}:${wlan_mac:10:2}"
+ACTION=="add", SUBSYSTEM=="net", INTERFACE=="wlan0", PROGRAM="/usr/bin/ip link set %k address ${wlan_mac:0:2}:${wlan_mac:2:2}:${wlan_mac:4:2}:${wlan_mac:6:2}:${wlan_mac:8:2}:${wlan_mac:10:2}"
 EOT
